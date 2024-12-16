@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   
   <!-- Google Fonts: "Amiri" (serif) and "Noto Sans" (sans-serif) -->
-  <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Noto+Sans&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Noto+Sans&family=Scheherazade+New&display=swap" rel="stylesheet">
 
   <style>
     /* BODY / BACKGROUND */
@@ -28,6 +28,17 @@
       padding: 20px;
       /* No background, let the image show through */
       border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* BISMILLAH */
+    #bismillah {
+      font-family: 'Scheherazade New', serif; 
+      font-size: 4rem; /* Or bigger, e.g. 3rem, as needed */
+      font-weight: 400; /* 'normal' weight for Amiri */
+      color: #ffd700; /* A soft complementary hue (pale gold / taupe) */
+      margin: 0 0 10px 0; /* Some spacing above the date */
+      opacity: 0.85; /* Slight transparency to reduce boldness */
+      letter-spacing: 0.02em; /* subtle spacing, optional */
     }
 
     /* DATE INFO */
@@ -127,7 +138,9 @@
 <body>
 
   <header>
-    <!-- Just text overlaying the background -->
+    <!-- Bismillah in Arabic calligraphy style -->
+    <h2 id="bismillah">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيمِ</h2>
+    
     <div id="dateInfo">Loading Date...</div>
   </header>
 
