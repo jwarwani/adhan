@@ -34,7 +34,6 @@ async function fetchPrayerData() {
     
     // Extract timings
     const { timings } = data.data;
-    timings['Dhuhr'] = '09:50';
     // We'll also extract the date info
     const { date } = data.data; 
     // date.gregorian.month.en, date.gregorian.day, date.gregorian.year
