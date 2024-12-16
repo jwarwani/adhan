@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prayer Clock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Google Fonts: "Amiri" (serif) and "Noto Sans" (sans-serif) -->
+  <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Noto+Sans&display=swap" rel="stylesheet">
+
+  <style>
+    /* BODY / BACKGROUND */
+    body {
+      margin: 0; 
+      padding: 0;
+      /* Use the mosque image as a cover background */
+      background: url('mosque.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #fefefe; /* Light text color for contrast against the darker sunset */
+      text-align: center;
+      font-family: 'Noto Sans', sans-serif; /* default body font */
+    }
+
+    /* HEADER */
+    header {
+      padding: 20px;
+      /* No background, let the image show through */
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* DATE INFO */
+    #dateInfo {
+      font-size: 1.3rem;
+      color: #fefefe;
+      margin: 0 auto;
+      /* No background or shadow, just plain text */
+      font-family: 'Amiri', serif;
+    }
+
+    /* NEXT PRAYER BLOCK */
+    #nextPrayerBlock {
+      /* Center and narrower width for the block */
+      width: 60%;
+      margin: 30px auto;
+      background: rgba(0, 0, 0, 0.4); /* subtle dark overlay to help text stand out */
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    /* Extra large text for visibility (~10x normal) */
+    #nextPrayerLabel {
+      font-family: 'Amiri', serif; /* more decorative font for Arabic/Islamic vibe */
+      font-size: 6rem; /* Adjust as needed (6rem ~ 96px). Increase if needed. */
+      color: #ffd700; /* A gold-ish hue that contrasts well with the background */
+      margin: 0;
+    }
+
+    #countdown {
+      font-size: 2rem; 
+      margin: 10px 0;
+      color: #fefefe;
+    }
+
+    /* PRAYER TIMES LIST */
+    .prayer-times {
+      display: flex; 
+      justify-content: center; 
+      flex-wrap: wrap; 
+      margin-top: 30px;
+    }
+
+    .prayer {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      width: 150px; 
+      margin: 10px;
+      padding: 15px;
+      font-size: 1.2rem;
+      color: #fefefe;
+    }
+
+    .prayer h2 {
+      font-family: 'Amiri', serif;
+      margin: 0; 
+      font-size: 1.4rem; 
+      color: #ffd700; /* same gold accent color */
+    }
+
+    .prayer p {
+      margin: 5px 0 0; 
+      font-size: 1.2rem;
+      color: #fefefe;
+    }
+
+    /* STARTUP OVERLAY */
+    #startupOverlay {
+      position: fixed; 
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      background: rgba(0,0,0,0.5); 
+      color: white; 
+      flex-direction: column;
+      z-index: 9999;
+    }
+    #startupOverlay button {
+      padding: 10px 20px; 
+      font-size: 1.2rem; 
+      margin-top: 20px;
+      border: none; 
+      border-radius: 5px; 
+      background: #4c956c; 
+      color: #fff;
+      cursor: pointer;
+    }
+    #startupOverlay button:hover {
+      background: #3b8056;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <!-- Just text overlaying the background -->
+    <div id="dateInfo">Loading Date...</div>
+  </header>
+
+  <div id="nextPrayerBlock">
+    <!-- Large next prayer text -->
+    <h1 id="nextPrayerLabel">Next Prayer Loading...</h1>
+    <!-- Countdown underneath -->
+    <div id="countdown">--:--:--</div>
+  </div>
+
+  <main>
+    <div class="prayer-times" id="prayerTimesContainer">
+      <!-- Each prayer time injected dynamically -->
+    </div>
+  </main>
+
+  <!-- Startup overlay to allow audio autoplay -->
+  <div id="startupOverlay">
+    <h2>Tap "Start" to enable Adhan audio</h2>
+    <button onclick="initAudio()">Start</button>
+  </div>
+
+  <audio id="adhanAudio" src="adhan.mp3" preload="auto"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
