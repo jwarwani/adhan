@@ -53,8 +53,8 @@
     /* NEXT PRAYER BLOCK */
     #nextPrayerBlock {
       /* Center and narrower width for the block */
-      width: 60%;
-      margin: 30px auto;
+      width: 90vw;
+      margin: 20px auto;
       background: rgba(0, 0, 0, 0.4); /* subtle dark overlay to help text stand out */
       border-radius: 15px;
       padding: 20px;
@@ -64,9 +64,15 @@
     /* Extra large text for visibility (~10x normal) */
     #nextPrayerLabel {
       font-family: 'Amiri', serif; /* more decorative font for Arabic/Islamic vibe */
-      font-size: 6rem; /* Adjust as needed (6rem ~ 96px). Increase if needed. */
-      color: #ffd700; /* A gold-ish hue that contrasts well with the background */
+      font-size: 10vw; /* 10% of the viewport width */
+      white-space: nowrap;       /* keep text on one line */
+      overflow: hidden;          /* hide overflow if text is still too big */
+      text-overflow: ellipsis;   /* optional: show "..." if text is truncated */
+      display: inline-block;     /* or block, but inline-block typically works well with overflow */
+      color: #ffd700;            /* your chosen color */
       margin: 0;
+      /* Optionally limit maximum size so it’s not too huge on large displays */
+      max-width: 100%;           /* or some container width */
     }
 
     #countdown {

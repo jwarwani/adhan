@@ -77,11 +77,6 @@ async function fetchPrayerDataForDay(offsetDays = 0) {
   }
 }
 
-// Option B: Original “fetchPrayerData()” that just calls “fetchPrayerDataForDay(0)”
-function fetchPrayerData() {
-  return fetchPrayerDataForDay(0);
-}
-
 // ------------------------------------ //
 
 function updateUI(dateObj) {
@@ -116,10 +111,7 @@ function displayNextPrayer() {
   const upcoming = prayerSchedule.filter(p => p.timestamp > now);
 
   if (upcoming.length === 0) {
-    // No upcoming prayers for this day
-    nextPrayerLabel.textContent = `Alhamdulillah`;
-    countdownElem.textContent = '';
-    nextPrayerData = null;
+    fetchPrayerDataForDay(1);
     return;
   }
 
