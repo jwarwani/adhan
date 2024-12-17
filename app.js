@@ -17,15 +17,19 @@ locationIndicator.style.bottom = '10px';
 locationIndicator.style.fontSize = '0.9rem';
 locationIndicator.style.color = '#ccc';
 
-let prayerSchedule = [];     // Each item: { name, time, timestamp }
+let prayerSchedule = [];     
 let nextPrayerTimeouts = [];
-let nextPrayerData = null;   // Next upcoming prayer for countdown
+let nextPrayerData = null;  
 
 // Global lat/lon (if user grants location)
 let userLat = null;
 let userLon = null;
 
-// 1. initAudio called from the "Start" button in the overlay
+// Constants for fallback location
+const FALLBACK_CITY = 'Queens';
+const FALLBACK_STATE = 'NY';
+const FALLBACK_COUNTRY = 'USA';
+
 function initAudio() {
   startupOverlay.style.display = 'none';
 
@@ -41,100 +45,74 @@ function initAudio() {
       (pos) => {
         userLat = pos.coords.latitude;
         userLon = pos.coords.longitude;
-        fetchPrayerDataForDay(0);  // fetch today's times using geolocation
-        updateLocationIndicator(userLat, userLon); // update city/country display
+        // Consolidated approach: single function fetchPrayerData
+        fetchPrayerData(0);  
+        // Also update city/country display
+        updateLocationIndicator(userLat, userLon);
       },
       (error) => {
         console.warn('Geolocation error:', error);
         // fallback to city-based approach if geolocation fails/denied
-        fetchPrayerDataCityForDay(0);
+        userLat = null;
+        userLon = null;
+        fetchPrayerData(0); 
+        locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   } else {
     console.warn('Geolocation not supported. Using default city.');
-    fetchPrayerDataCityForDay(0); // fallback
+    fetchPrayerData(0); 
+    locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
   }
 }
 
-// 2. fetchPrayerDataForDay using lat/lng and AlAdhan’s lat-lon endpoint
-async function fetchPrayerDataForDay(offsetDays = 0) {
+/**
+ * Consolidated function that fetches prayer data for either lat/lon or fallback city.
+ * @param {number} offsetDays - 0 (today), 1 (tomorrow), etc.
+ */
+async function fetchPrayerData(offsetDays = 0) {
   try {
-    if (!userLat || !userLon) {
-      // No geolocation? fallback
-      fetchPrayerDataCityForDay(offsetDays);
-      return;
+    const now = new Date();
+    now.setDate(now.getDate() + offsetDays);
+
+    let responseData = null;
+    let dateObj = null;         // To store .date from API
+    let dailyPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+    if (userLat !== null && userLon !== null) {
+      // ======== LAT/LON approach ========
+      // Use AlAdhan "timings/{timestamp}" endpoint
+      const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
+      const unixTimestamp = Math.floor(targetMidnight.valueOf() / 1000);
+      const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.code !== 200) throw new Error('API error (lat/lon)');
+
+      responseData = data.data;  // {timings, date, etc.}
+      dateObj = data.data.date;
+
+    } else {
+      // ======== CITY/STATE fallback approach ========
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const dateParam = `${day}-${month}-${year}`;
+      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}&method=2&school=1&date=${dateParam}`;
+      
+      const response = await fetch(cityURL);
+      const data = await response.json();
+      if (data.code !== 200) throw new Error('API error (city fallback)');
+      
+      responseData = data.data;
+      dateObj = data.data.date;
     }
 
-    // We shift the date by offsetDays for tomorrow logic
-    const now = new Date();
-    now.setDate(now.getDate() + offsetDays);
-
-    // AlAdhan lat/lon + a specific date is not as direct. 
-    // The "timings" endpoint by lat/lng always returns "today" (unless we pass a timestamp).
-    // So we can use the timestamp param => https://aladhan.com/prayer-times-api#GetTimings
-    // We'll create a custom timestamp for "today + offsetDays" at midnight
-    const targetDateMidnight = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate(), 
-      0, 0, 0
-    );
-    const unixTimestamp = Math.floor(targetDateMidnight.valueOf() / 1000);
-
-    const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1`;
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.code !== 200) throw new Error('API error (lat/lon)');
-
-    const { timings } = data.data;
-    const { date } = data.data;
-    const dailyPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-    
+    const timings = responseData.timings;
+    timings['Dhuhr'] = '12:19';
     // Build schedule
-    prayerSchedule = dailyPrayers.map(prayerName => {
-      const timeStr = timings[prayerName];  // e.g. "05:30"
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      const prayerDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-        hours, minutes, 0
-      );
-      return {
-        name: prayerName,
-        time: timeStr,
-        timestamp: prayerDate.getTime(),
-      };
-    });
-
-    updateUI(date);
-    scheduleAdhans();
-    startCountdownUpdater();
-
-  } catch (err) {
-    console.error('Error fetching prayer times by coords:', err);
-    nextPrayerLabel.textContent = 'Failed to load prayer data.';
-  }
-}
-
-// Fallback approach using city "Queens, NY"
-async function fetchPrayerDataCityForDay(offsetDays = 0) {
-  try {
-    const now = new Date();
-    now.setDate(now.getDate() + offsetDays);
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const year = now.getFullYear();
-    const dateParam = `${day}-${month}-${year}`;
-
-    const url = `https://api.aladhan.com/v1/timingsByCity?city=Queens&state=NY&country=USA&method=2&school=1&date=${dateParam}`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.code !== 200) throw new Error('API error (city fallback)');
-
-    const { timings } = data.data;
-    const { date } = data.data;
-    const dailyPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
     const baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     prayerSchedule = dailyPrayers.map(prayerName => {
@@ -148,30 +126,23 @@ async function fetchPrayerDataCityForDay(offsetDays = 0) {
       };
     });
 
-    updateUI(date);
+    // Now update UI, schedule adhans, etc.
+    updateUI(dateObj);
     scheduleAdhans();
     startCountdownUpdater();
 
-    // Show fallback location in bottom-right
-    locationIndicator.textContent = 'Queens, NY (fallback)';
   } catch (err) {
-    console.error('Error fetching city fallback prayer times:', err);
+    console.error('Error fetching prayer data:', err);
     nextPrayerLabel.textContent = 'Failed to load prayer data.';
   }
 }
 
-// 3. Show city/country in bottom-right
 async function updateLocationIndicator(lat, lon) {
   try {
-    // Simple reverse geocoding request to a free service like Nominatim
-    // e.g. https://nominatim.org/release-docs/latest/api/Reverse/
-    // GET https://nominatim.openstreetmap.org/reverse?lat=...&lon=...&format=json
-
     const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
     const res = await fetch(geoUrl);
     const locationData = await res.json();
 
-    // Nominatim calls the city different keys (like address.city, address.town, etc.)
     let city = locationData?.address?.city 
             || locationData?.address?.town 
             || locationData?.address?.village 
@@ -185,7 +156,7 @@ async function updateLocationIndicator(lat, lon) {
   }
 }
 
-// 4. UI & Scheduling
+// UI & Scheduling
 function updateUI(dateObj) {
   const gregorian = dateObj.gregorian;
   const hijri = dateObj.hijri;
@@ -198,13 +169,9 @@ function updateUI(dateObj) {
   prayerSchedule.forEach(prayer => {
     const div = document.createElement('div');
     div.className = 'prayer';
-    div.innerHTML = `
-      <h2>${prayer.name}</h2>
-      <p>${prayer.time}</p>
-    `;
+    div.innerHTML = `<h2>${prayer.name}</h2><p>${prayer.time}</p>`;
     prayerTimesContainer.appendChild(div);
   });
-
   displayNextPrayer();
 }
 
@@ -214,7 +181,7 @@ function displayNextPrayer() {
 
   if (upcoming.length === 0) {
     // If no upcoming prayers, fetch tomorrow’s schedule
-    fetchPrayerDataForDay(1);
+    fetchPrayerData(1);
     return;
   }
 
@@ -234,12 +201,9 @@ function scheduleAdhans() {
       const tID = setTimeout(() => {
         playAdhan();
         displayNextPrayer();
-
-        // If Isha triggers, fetch tomorrow’s schedule
         if (prayer.name === 'Isha') {
-          // optional short delay to let adhan play 
           setTimeout(() => {
-            fetchPrayerDataForDay(1);
+            fetchPrayerData(1);
           }, 0);
         }
       }, diff);
@@ -253,7 +217,7 @@ function playAdhan() {
   adhanAudio.play().catch(err => console.error('Failed to play adhan:', err));
 }
 
-// 5. Countdown updates every second
+// Countdown Updater: refresh every second
 function startCountdownUpdater() {
   setInterval(() => {
     if (!nextPrayerData) {
@@ -266,7 +230,6 @@ function startCountdownUpdater() {
       countdownElem.textContent = 'It’s time!';
       return;
     }
-
     const totalSec = Math.floor(diff / 1000);
     const hours = Math.floor(totalSec / 3600);
     const mins = Math.floor((totalSec % 3600) / 60);
@@ -278,19 +241,18 @@ function startCountdownUpdater() {
   }, 1000);
 }
 
-// 6. Daily refresh at midnight (optional, extra safety)
+// Daily refresh at midnight
 function scheduleDailyRefresh() {
   const now = new Date();
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 0, 0);
   const diff = midnight - now;
   setTimeout(() => {
-    // Re-fetch tomorrow’s data at midnight
-    // Using geolocation if available, otherwise fallback
     if (userLat && userLon) {
-      fetchPrayerDataForDay(0);
+      fetchPrayerData(0);
       updateLocationIndicator(userLat, userLon);
     } else {
-      fetchPrayerDataCityForDay(0);
+      fetchPrayerData(0);
+      locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
     }
     scheduleDailyRefresh();
   }, diff);
