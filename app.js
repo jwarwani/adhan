@@ -85,7 +85,7 @@ async function fetchPrayerData(offsetDays = 0, skipDateUI = false) {
       // Use AlAdhan "timings/{timestamp}" endpoint
       const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
       const unixTimestamp = Math.floor(targetMidnight.valueOf() / 1000);
-      const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1&timezonestring=auto`;
+      const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -100,7 +100,7 @@ async function fetchPrayerData(offsetDays = 0, skipDateUI = false) {
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const year = now.getFullYear();
       const dateParam = `${day}-${month}-${year}`;
-      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}&method=2&school=1&date=${dateParam}&timezonestring=auto`;
+      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}&method=2&school=1&date=${dateParam}`;
       
       const response = await fetch(cityURL);
       const data = await response.json();
