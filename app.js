@@ -11,7 +11,7 @@ locationIndicator.id = 'locationIndicator';
 document.body.appendChild(locationIndicator);
 
 // Some basic styling for the location text
-locationIndicator.style.position = 'absolute';
+locationIndicator.style.position = 'fixed';
 locationIndicator.style.right = '10px';
 locationIndicator.style.bottom = '10px';
 locationIndicator.style.fontSize = '0.9rem';
@@ -71,7 +71,7 @@ function initAudio() {
  * Consolidated function that fetches prayer data for either lat/lon or fallback city.
  * @param {number} offsetDays - 0 (today), 1 (tomorrow), etc.
  */
-async function fetchPrayerData(offsetDays = 0) {
+async function fetchPrayerData(offsetDays = 0, skipDateUI = false) {
   try {
     const now = new Date();
     now.setDate(now.getDate() + offsetDays);
@@ -85,7 +85,7 @@ async function fetchPrayerData(offsetDays = 0) {
       // Use AlAdhan "timings/{timestamp}" endpoint
       const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
       const unixTimestamp = Math.floor(targetMidnight.valueOf() / 1000);
-      const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1`;
+      const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}?latitude=${userLat}&longitude=${userLon}&method=2&school=1&timezonestring=auto`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -100,7 +100,7 @@ async function fetchPrayerData(offsetDays = 0) {
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const year = now.getFullYear();
       const dateParam = `${day}-${month}-${year}`;
-      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}&method=2&school=1&date=${dateParam}`;
+      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}&method=2&school=1&date=${dateParam}&timezonestring=auto`;
       
       const response = await fetch(cityURL);
       const data = await response.json();
@@ -127,7 +127,11 @@ async function fetchPrayerData(offsetDays = 0) {
     });
 
     // Now update UI, schedule adhans, etc.
-    updateUI(dateObj);
+    if (!skipDateUI) {
+      updateUI(dateObj);
+    } else {
+      updatePrayerTimesList();
+    }
     scheduleAdhans();
     startCountdownUpdater();
 
@@ -164,6 +168,10 @@ function updateUI(dateObj) {
   const hijriString = `${hijri.day} ${hijri.month.en} ${hijri.year}`;
   dateInfoElem.textContent = `Today: ${gregorianString} | Hijri: ${hijriString}`;
 
+  updatePrayerTimesList ();
+}
+
+function updatePrayerTimesList() {
   prayerSchedule.sort((a, b) => a.timestamp - b.timestamp);
   prayerTimesContainer.innerHTML = '';
   prayerSchedule.forEach(prayer => {
@@ -181,7 +189,7 @@ function displayNextPrayer() {
 
   if (upcoming.length === 0) {
     // If no upcoming prayers, fetch tomorrow’s schedule
-    fetchPrayerData(1);
+    fetchPrayerData(1, true);
     return;
   }
 
