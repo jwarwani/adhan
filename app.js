@@ -2,11 +2,11 @@
  * DOM Elements & Global Variables
  ***********************************/
 const prayerTimesContainer = document.getElementById('prayerTimesContainer');
-const nextPrayerLabel = document.getElementById('nextPrayerLabel');
-const countdownElem = document.getElementById('countdown');
-const dateInfoElem = document.getElementById('dateInfo');
-const adhanAudio = document.getElementById('adhanAudio');
-const startupOverlay = document.getElementById('startupOverlay');
+const currentTimeLabel     = document.getElementById('currentTimeLabel');
+const nextPrayerLabel      = document.getElementById('nextPrayerLabel');
+const dateInfoElem         = document.getElementById('dateInfo');
+const adhanAudio           = document.getElementById('adhanAudio');
+const startupOverlay       = document.getElementById('startupOverlay');
 
 const locationIndicator = document.createElement('div');
 locationIndicator.id = 'locationIndicator';
@@ -17,42 +17,42 @@ locationIndicator.style.bottom = '10px';
 locationIndicator.style.fontSize = '0.9rem';
 locationIndicator.style.color = '#ccc';
 
-// Data structures
-let prayerSchedule = [];       // Array of { name, time, timestamp }
-let nextPrayerData = null;     // Current upcoming prayer object
-let playedPrayers = new Set(); // Track prayers whose Adhan has already been played
+// Prayer data and logic
+let prayerSchedule = [];
+let nextPrayerData = null;
+let playedPrayers  = new Set();  // track adhan plays
 
+// Geolocation / fallback
 let userLat = null;
 let userLon = null;
-
-const FALLBACK_CITY = 'Queens';
-const FALLBACK_STATE = 'NY';
-const FALLBACK_COUNTRY = 'USA';
+const FALLBACK_CITY     = 'Queens';
+const FALLBACK_STATE    = 'NY';
+const FALLBACK_COUNTRY  = 'USA';
 
 
 /***********************************
- * Initialization & Audio Priming
+ * Startup / Audio Init
  ***********************************/
 function initAudio() {
   startupOverlay.style.display = 'none';
 
-  // Prime the adhan audio (iOS requires user interaction + immediate play/pause)
+  // Prime iOS autoplay
   adhanAudio.play().then(() => {
     adhanAudio.pause();
-    console.log('Audio primed for iOS autoplay');
+    console.log('Audio primed');
   }).catch(err => console.log('Audio play error:', err));
 
-  // Attempt to get geolocation
+  // Attempt geolocation
   if ('geolocation' in navigator) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         userLat = pos.coords.latitude;
         userLon = pos.coords.longitude;
-        fetchPrayerData(0);  
+        fetchPrayerData(0);
         updateLocationIndicator(userLat, userLon);
       },
-      (error) => {
-        console.warn('Geolocation error:', error);
+      (err) => {
+        console.warn('Geolocation error:', err);
         userLat = null;
         userLon = null;
         fetchPrayerData(0);
@@ -61,7 +61,7 @@ function initAudio() {
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   } else {
-    console.warn('Geolocation not supported. Using fallback city.');
+    console.warn('Geolocation not supported; using fallback city.');
     fetchPrayerData(0);
     locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
   }
@@ -69,22 +69,19 @@ function initAudio() {
 
 
 /***********************************
- * Fetching Prayer Data
+ * Fetch Prayer Data
  ***********************************/
 async function fetchPrayerData(offsetDays = 0) {
   try {
     const now = new Date();
     now.setDate(now.getDate() + offsetDays);
 
-    let responseData, dateObj;
-    const dailyPrayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-
-    // 1) Build the user’s local time zone string
-    // e.g. "America/New_York"
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const dailyPrayers = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 
+    let responseData, dateObj;
     if (userLat !== null && userLon !== null) {
-      // --- Lat/Long approach with AlAdhan "timings/{timestamp}?timezonestring=xxx" ---
+      // lat/lon approach
       const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
       const unixTimestamp = Math.floor(targetMidnight.valueOf() / 1000);
 
@@ -92,62 +89,48 @@ async function fetchPrayerData(offsetDays = 0) {
                 + `?latitude=${userLat}&longitude=${userLon}`
                 + `&method=2&school=1`
                 + `&timezonestring=${encodeURIComponent(userTimeZone)}`;
-
-      const response = await fetch(url);
-      const data = await response.json();
+      const resp = await fetch(url);
+      const data = await resp.json();
       if (data.code !== 200) throw new Error('API error (lat/lon)');
       responseData = data.data;
       dateObj = data.data.date;
-
     } else {
-      // --- Fallback city approach with "timingsByCity?timezonestring=xxx" ---
+      // city fallback
       const day = String(now.getDate()).padStart(2, '0');
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const year = now.getFullYear();
       const dateParam = `${day}-${month}-${year}`;
 
-      const cityURL = `https://api.aladhan.com/v1/timingsByCity`
-                    + `?city=${FALLBACK_CITY}&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}`
+      const cityURL = `https://api.aladhan.com/v1/timingsByCity?city=${FALLBACK_CITY}`
+                    + `&state=${FALLBACK_STATE}&country=${FALLBACK_COUNTRY}`
                     + `&method=2&school=1`
                     + `&date=${dateParam}`
                     + `&timezonestring=${encodeURIComponent(userTimeZone)}`;
-
-      const response = await fetch(cityURL);
-      const data = await response.json();
+      const resp = await fetch(cityURL);
+      const data = await resp.json();
       if (data.code !== 200) throw new Error('API error (city fallback)');
       responseData = data.data;
       dateObj = data.data.date;
     }
 
+    // Build schedule
     const timings = responseData.timings;
     const baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    prayerSchedule = dailyPrayers.map((prayerName) => {
-      const timeStr = timings[prayerName];  // e.g. "05:30"
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      const prayerDate = new Date(
-        baseDate.getFullYear(),
-        baseDate.getMonth(),
-        baseDate.getDate(),
-        hours,
-        minutes,
-        0
-      );
-      return {
-        name: prayerName,
-        time: timeStr,
-        timestamp: prayerDate.getTime(),
-      };
+    prayerSchedule = dailyPrayers.map(prayer => {
+      const timeStr = timings[prayer];
+      const [hh, mm] = timeStr.split(':').map(Number);
+      const stamp = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hh, mm, 0);
+      return { name: prayer, time: timeStr, timestamp: stamp.getTime() };
     });
 
-    // Reset the set of played prayers, so we can play them again for the new day
-    playedPrayers.clear();
-
-    updateUI(dateObj); 
+    playedPrayers.clear(); // reset for a new day
+    updateUI(dateObj);
     scheduleDailyRefresh();
-  } catch (err) {
+
+  } catch(err) {
     console.error('Error fetching prayer data:', err);
-    nextPrayerLabel.textContent = 'Failed to load prayer data.';
+    currentTimeLabel.textContent = 'Error loading data';
+    nextPrayerLabel.textContent  = '';
   }
 }
 
@@ -159,124 +142,117 @@ async function updateLocationIndicator(lat, lon) {
   try {
     const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
     const res = await fetch(geoUrl);
-    const locationData = await res.json();
+    const data = await res.json();
 
-    let city = locationData?.address?.city 
-            || locationData?.address?.town 
-            || locationData?.address?.village 
-            || 'Unknown City';
-    let country = locationData?.address?.country || 'Unknown Country';
+    const city = data?.address?.city 
+              || data?.address?.town 
+              || data?.address?.village 
+              || 'Unknown City';
+    const country = data?.address?.country || 'Unknown Country';
     locationIndicator.textContent = `${city}, ${country}`;
-  } catch (err) {
-    console.error('Reverse geocoding error:', err);
+  } catch {
     locationIndicator.textContent = '';
   }
 }
 
 
 /***********************************
- * UI & Display Logic
+ * UI & Display
  ***********************************/
 function updateUI(dateObj) {
-  // 1) Update date display
+  // 1) Update date string
   const gregorian = dateObj.gregorian;
   const hijri = dateObj.hijri;
   const gregorianString = `${gregorian.day} ${gregorian.month.en} ${gregorian.year}`;
-  const hijriString = `${hijri.day} ${hijri.month.en} ${hijri.year}`;
+  const hijriString     = `${hijri.day} ${hijri.month.en} ${hijri.year}`;
   dateInfoElem.textContent = `Today: ${gregorianString} | Hijri: ${hijriString}`;
 
   // 2) Sort & display prayer times
-  prayerSchedule.sort((a, b) => a.timestamp - b.timestamp);
+  prayerSchedule.sort((a,b) => a.timestamp - b.timestamp);
   prayerTimesContainer.innerHTML = '';
-  for (const prayer of prayerSchedule) {
+  for (const p of prayerSchedule) {
     const div = document.createElement('div');
     div.className = 'prayer';
-    div.innerHTML = `<h2>${prayer.name}</h2><p>${prayer.time}</p>`;
+    div.innerHTML = `<h2>${p.name}</h2><p>${p.time}</p>`;
     prayerTimesContainer.appendChild(div);
   }
 
-  // 3) Determine the next prayer
-  displayNextPrayer();
-
-  // 4) Start or restart the countdown loop
-  startCountdownUpdater();
+  // 3) Find the next prayer
+  findNextPrayer();
+  // 4) Start the main loop that updates current time & checks prayer triggers
+  startMainLoop();
 }
 
-function displayNextPrayer() {
+/** Finds the next upcoming prayer & updates #nextPrayerLabel. */
+function findNextPrayer() {
   const now = Date.now();
   const upcoming = prayerSchedule.filter(p => p.timestamp > now);
-
   if (upcoming.length === 0) {
-    // No upcoming prayers => fetch tomorrow’s times
-    // But keep the same date displayed until midnight
-    fetchPrayerData(1); 
-    nextPrayerLabel.textContent = 'All prayers done for today';
+    // no upcoming prayers => fetch tomorrow 
     nextPrayerData = null;
+    nextPrayerLabel.textContent = 'All prayers done for today';
+    fetchPrayerData(1);
     return;
   }
-
   nextPrayerData = upcoming[0];
-  nextPrayerLabel.textContent = `${nextPrayerData.name} ${nextPrayerData.time}`;
+  nextPrayerLabel.textContent = `Next prayer: ${nextPrayerData.name} @ ${nextPrayerData.time}`;
 }
 
 
 /***********************************
- * Countdown & Adhan Handling
+ * Main Loop: Current Time & Adhan
  ***********************************/
-function startCountdownUpdater() {
-  // Clear any existing intervals before setting a new one
-  if (window._countdownInterval) {
-    clearInterval(window._countdownInterval);
-  }
+function startMainLoop() {
+  // Clear existing interval if any
+  if (window._mainInterval) clearInterval(window._mainInterval);
 
-  window._countdownInterval = setInterval(() => {
-    if (!nextPrayerData) {
-      countdownElem.textContent = '';
-      return;
-    }
+  window._mainInterval = setInterval(() => {
+    // 1) Update the current time label
+    displayCurrentTime();
 
-    const now = Date.now();
-    const diff = nextPrayerData.timestamp - now;
-
-    if (diff <= 0) {
-      // It's prayer time or already past it
-      // 1) If we haven't played Adhan yet for this prayer, do so
-      if (!playedPrayers.has(nextPrayerData.name)) {
-        playAdhan();
-        playedPrayers.add(nextPrayerData.name);
+    // 2) Check if next prayer has passed
+    if (nextPrayerData) {
+      const now = Date.now();
+      if (now >= nextPrayerData.timestamp) {
+        // Trigger Adhan if not played
+        if (!playedPrayers.has(nextPrayerData.name)) {
+          playAdhan();
+          playedPrayers.add(nextPrayerData.name);
+        }
+        // Move on to the next prayer
+        setTimeout(() => {
+          findNextPrayer();
+        }, 60_000); 
       }
-
-      // 2) Update countdown
-      countdownElem.textContent = "It's time!";
-      // 3) Force immediate re-check to move on to the next prayer
-      //    so we don't stay stuck
-      setTimeout(() => {
-        displayNextPrayer(); 
-      }, 60_000); 
-      // ^ optionally wait 60s so the user sees "It's time!" for a bit 
-      //   before switching, or set to 0 for immediate switch
-
-      return;
     }
-
-    // Normal countdown
-    const totalSec = Math.floor(diff / 1000);
-    const hours = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-
-    const hh = hours.toString().padStart(2, '0');
-    const mm = mins.toString().padStart(2, '0');
-    const ss = secs.toString().padStart(2, '0');
-    countdownElem.textContent = `${hh}:${mm}:${ss} until ${nextPrayerData.name}`;
   }, 1000);
 }
 
+/** Displays local current time in #currentTimeLabel (12-hour format). */
+function displayCurrentTime() {
+  const now = new Date();
+  let hours   = now.getHours();
+  let minutes = now.getMinutes();
+  let seconds = now.getSeconds();
 
+  // 12-hour format
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = (hours % 12) || 12; // convert 0 => 12
+  const hh = hours.toString().padStart(2, '0');
+  const mm = minutes.toString().padStart(2, '0');
+  const ss = seconds.toString().padStart(2, '0');
+
+  currentTimeLabel.textContent = `${hh}:${mm}:${ss} ${ampm}`;
+}
+
+
+/***********************************
+ * Play Adhan
+ ***********************************/
 function playAdhan() {
   adhanAudio.currentTime = 0;
   adhanAudio.play().catch(err => {
-    console.error('Failed to play adhan:', err);
+    console.error('Adhan play error:', err);
   });
 }
 
@@ -285,23 +261,16 @@ function playAdhan() {
  * Daily Refresh at Midnight
  ***********************************/
 function scheduleDailyRefresh() {
-  // Clear old refresh if any
   if (window._dailyRefreshTimeout) {
     clearTimeout(window._dailyRefreshTimeout);
   }
-
   const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,0,0);
   const diff = midnight - now;
-
   window._dailyRefreshTimeout = setTimeout(() => {
-    // Actually fetch new "today" data after midnight 
     fetchPrayerData(0).then(() => {
-      if (userLat && userLon) {
-        updateLocationIndicator(userLat, userLon);
-      } else {
-        locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
-      }
+      if (userLat && userLon) updateLocationIndicator(userLat, userLon);
+      else locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
     });
   }, diff);
 }
