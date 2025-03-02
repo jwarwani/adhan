@@ -72,9 +72,18 @@
 
     /* Smaller label for NEXT PRAYER */
     #nextPrayerLabel {
-      font-size: 2rem; 
+      font-size: 4rem; 
       margin: 10px 0;
+    }
+
+    /* The prefix text in white */
+    #nextPrayerTextPrefix {
       color: #fefefe;
+    }
+
+    /* The prayer/time detail in gold */
+    #nextPrayerTextDetails {
+      color: #ffd700;
     }
 
     /* PRAYER TIMES LIST */
@@ -147,8 +156,11 @@
   <div id="timeBlock">
     <!-- Large current time label -->
     <h1 id="currentTimeLabel">Loading Current Time...</h1>
-    <!-- Next prayer display -->
-    <div id="nextPrayerLabel">Next prayer: Loading...</div>
+    <!-- Next prayer display broken into two spans -->
+    <div id="nextPrayerLabel">
+      <span id="nextPrayerTextPrefix">Next prayer: </span>
+      <span id="nextPrayerTextDetails">Loading...</span>
+    </div>
   </div>
 
   <main>

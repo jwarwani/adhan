@@ -3,7 +3,7 @@
  ***********************************/
 const prayerTimesContainer = document.getElementById('prayerTimesContainer');
 const currentTimeLabel     = document.getElementById('currentTimeLabel');
-const nextPrayerLabel      = document.getElementById('nextPrayerLabel');
+const nextPrayerLabel      = document.getElementById('nextPrayerTextDetails');
 const dateInfoElem         = document.getElementById('dateInfo');
 const adhanAudio           = document.getElementById('adhanAudio');
 const startupOverlay       = document.getElementById('startupOverlay');
@@ -129,8 +129,7 @@ async function fetchPrayerData(offsetDays = 0) {
 
   } catch(err) {
     console.error('Error fetching prayer data:', err);
-    currentTimeLabel.textContent = 'Error loading data';
-    nextPrayerLabel.textContent  = '';
+    nextPrayerLabel.textContent  = 'Error loading data';
   }
 }
 
@@ -195,7 +194,7 @@ function findNextPrayer() {
     return;
   }
   nextPrayerData = upcoming[0];
-  nextPrayerLabel.textContent = `Next prayer: ${nextPrayerData.name} @ ${nextPrayerData.time}`;
+  nextPrayerLabel.textContent = `${nextPrayerData.name} @ ${nextPrayerData.time}`;
 }
 
 
@@ -228,21 +227,18 @@ function startMainLoop() {
   }, 1000);
 }
 
-/** Displays local current time in #currentTimeLabel (12-hour format). */
+/** Displays local current time in #currentTimeLabel (24-hour format). */
 function displayCurrentTime() {
   const now = new Date();
   let hours   = now.getHours();
   let minutes = now.getMinutes();
   let seconds = now.getSeconds();
 
-  // 12-hour format
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = (hours % 12) || 12; // convert 0 => 12
   const hh = hours.toString().padStart(2, '0');
   const mm = minutes.toString().padStart(2, '0');
   const ss = seconds.toString().padStart(2, '0');
 
-  currentTimeLabel.textContent = `${hh}:${mm}:${ss} ${ampm}`;
+  currentTimeLabel.textContent = `${hh}:${mm}:${ss}`;
 }
 
 
