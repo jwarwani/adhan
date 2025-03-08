@@ -82,7 +82,7 @@ async function fetchPrayerData(offsetDays = 0) {
     let responseData, dateObj;
     if (userLat !== null && userLon !== null) {
       // lat/lon approach
-      const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const targetMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 1, 0);
       const unixTimestamp = Math.floor(targetMidnight.valueOf() / 1000);
 
       const url = `https://api.aladhan.com/v1/timings/${unixTimestamp}`
@@ -261,7 +261,7 @@ function scheduleDailyRefresh() {
     clearTimeout(window._dailyRefreshTimeout);
   }
   const now = new Date();
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,0,0);
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,1,0);
   const diff = midnight - now;
   window._dailyRefreshTimeout = setTimeout(() => {
     fetchPrayerData(0).then(() => {
