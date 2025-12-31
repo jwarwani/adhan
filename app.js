@@ -29,6 +29,9 @@ const FALLBACK_CITY     = 'Queens';
 const FALLBACK_STATE    = 'NY';
 const FALLBACK_COUNTRY  = 'USA';
 
+// Wake lock
+let wakeLock = null;
+
 
 /***********************************
  * Startup / Audio Init
@@ -64,6 +67,39 @@ function initAudio() {
     console.warn('Geolocation not supported; using fallback city.');
     fetchPrayerData(0);
     locationIndicator.textContent = `${FALLBACK_CITY}, ${FALLBACK_STATE} (fallback)`;
+  }
+
+  // Request wake lock to keep screen on
+  requestWakeLock();
+}
+
+
+/***********************************
+ * Wake Lock
+ ***********************************/
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('Wake lock activated');
+
+      // Re-acquire wake lock if page becomes visible again
+      wakeLock.addEventListener('release', () => {
+        console.log('Wake lock released');
+      });
+
+      document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Wake lock re-acquired');
+        }
+      });
+
+    } catch (err) {
+      console.warn('Wake lock error:', err);
+    }
+  } else {
+    console.warn('Wake Lock API not supported. Please disable auto-lock in iOS settings.');
   }
 }
 
@@ -159,12 +195,26 @@ async function updateLocationIndicator(lat, lon) {
  * UI & Display
  ***********************************/
 function updateUI(dateObj) {
-  // 1) Update date string
+  // 1) Update date string with special date detection
   const gregorian = dateObj.gregorian;
   const hijri = dateObj.hijri;
   const gregorianString = `${gregorian.day} ${gregorian.month.en} ${gregorian.year}`;
-  const hijriString     = `${hijri.day} ${hijri.month.en} ${hijri.year}`;
-  dateInfoElem.textContent = `Today: ${gregorianString} | Hijri: ${hijriString}`;
+  const hijriString = `${hijri.day} ${hijri.month.en} ${hijri.year}`;
+
+  // Detect special Islamic dates
+  const hijriMonth = parseInt(hijri.month.number);
+  const hijriDay = parseInt(hijri.day);
+  let specialIndicator = '';
+
+  if (hijriMonth === 9) {
+    // Entire month of Ramadan
+    specialIndicator = ' ✦ Ramadan ✦';
+  } else if (hijriMonth === 12 && hijriDay === 10) {
+    // Eid al-Adha (10th of Dhul Hijjah)
+    specialIndicator = ' ✦ Eid al-Adha ✦';
+  }
+
+  dateInfoElem.innerHTML = `Today: ${gregorianString} | Hijri: <span class="hijri-date${specialIndicator ? ' special-date' : ''}">${hijriString}${specialIndicator}</span>`;
 
   // 2) Sort & display prayer times
   prayerSchedule.sort((a,b) => a.timestamp - b.timestamp);
@@ -178,7 +228,9 @@ function updateUI(dateObj) {
 
   // 3) Find the next prayer
   findNextPrayer();
-  // 4) Start the main loop that updates current time & checks prayer triggers
+  // 4) Update background dimming based on time
+  updateBackgroundDimming();
+  // 5) Start the main loop that updates current time & checks prayer triggers
   startMainLoop();
 }
 
@@ -187,14 +239,21 @@ function findNextPrayer() {
   const now = Date.now();
   const upcoming = prayerSchedule.filter(p => p.timestamp > now);
   if (upcoming.length === 0) {
-    // no upcoming prayers => fetch tomorrow 
+    // no upcoming prayers => fetch tomorrow
     nextPrayerData = null;
     nextPrayerLabel.textContent = 'All prayers done for today';
     fetchPrayerData(1);
     return;
   }
   nextPrayerData = upcoming[0];
-  nextPrayerLabel.textContent = `${nextPrayerData.name} @ ${nextPrayerData.time}`;
+
+  // Fade out before changing
+  nextPrayerLabel.style.opacity = '0';
+
+  setTimeout(() => {
+    nextPrayerLabel.textContent = `${nextPrayerData.name} @ ${nextPrayerData.time}`;
+    nextPrayerLabel.style.opacity = '1';
+  }, 300);
 }
 
 
@@ -209,7 +268,15 @@ function startMainLoop() {
     // 1) Update the current time label
     displayCurrentTime();
 
-    // 2) Check if next prayer has passed
+    // 2) Update prayer approaching indicator
+    updatePrayerApproaching();
+
+    // 3) Update background dimming every minute
+    if (new Date().getSeconds() === 0) {
+      updateBackgroundDimming();
+    }
+
+    // 4) Check if next prayer has passed
     if (nextPrayerData) {
       const now = Date.now();
       if (now >= nextPrayerData.timestamp) {
@@ -221,7 +288,7 @@ function startMainLoop() {
         // Move on to the next prayer
         setTimeout(() => {
           findNextPrayer();
-        }, 60_000); 
+        }, 60_000);
       }
     }
   }, 1000);
@@ -250,6 +317,52 @@ function playAdhan() {
   adhanAudio.play().catch(err => {
     console.error('Adhan play error:', err);
   });
+}
+
+
+/***********************************
+ * Prayer Approaching Indicator
+ ***********************************/
+function updatePrayerApproaching() {
+  if (!nextPrayerData) return;
+
+  const now = Date.now();
+  const timeUntilPrayer = nextPrayerData.timestamp - now;
+  const tenMinutes = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+  const nextPrayerLabelElem = document.getElementById('nextPrayerLabel');
+
+  if (timeUntilPrayer <= tenMinutes && timeUntilPrayer > 0) {
+    nextPrayerLabelElem.classList.add('prayer-approaching');
+  } else {
+    nextPrayerLabelElem.classList.remove('prayer-approaching');
+  }
+}
+
+
+/***********************************
+ * Background Dimming
+ ***********************************/
+function updateBackgroundDimming() {
+  const now = new Date();
+  const overlay = document.getElementById('timeDimOverlay');
+
+  // Find Isha and Fajr times from schedule
+  const isha = prayerSchedule.find(p => p.name === 'Isha');
+  const fajr = prayerSchedule.find(p => p.name === 'Fajr');
+
+  if (!isha || !fajr) return;
+
+  const currentTime = now.getTime();
+
+  // Check if current time is after Isha OR before Fajr (nighttime)
+  const isNightTime = currentTime >= isha.timestamp || currentTime < fajr.timestamp;
+
+  if (isNightTime) {
+    overlay.classList.add('night-mode');
+  } else {
+    overlay.classList.remove('night-mode');
+  }
 }
 
 
