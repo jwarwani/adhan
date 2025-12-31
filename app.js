@@ -34,6 +34,46 @@ let wakeLock = null;
 
 
 /***********************************
+ * Debug Time Override
+ * Usage in browser console:
+ *   setDebugTime('2024-12-30 17:20:00')  // Set time (continues to advance)
+ *   setDebugTime(null)                    // Disable debug mode
+ ***********************************/
+let debugTimeOffset = null;
+
+function getCurrentTime() {
+  if (debugTimeOffset !== null) {
+    return new Date(Date.now() + debugTimeOffset);
+  }
+  return new Date();
+}
+
+function getCurrentTimestamp() {
+  if (debugTimeOffset !== null) {
+    return Date.now() + debugTimeOffset;
+  }
+  return Date.now();
+}
+
+window.setDebugTime = function(timeString) {
+  if (timeString === null) {
+    debugTimeOffset = null;
+    console.log('Debug mode disabled');
+    fetchPrayerData(0);
+    return;
+  }
+
+  const targetTime = new Date(timeString);
+  debugTimeOffset = targetTime.getTime() - Date.now();
+  console.log(`Debug time set to: ${targetTime.toString()}`);
+  console.log('Time will continue to advance from this point.');
+
+  // Re-fetch prayer data for the new date and update UI
+  fetchPrayerData(0);
+};
+
+
+/***********************************
  * Startup / Audio Init
  ***********************************/
 function initAudio() {
@@ -109,7 +149,7 @@ async function requestWakeLock() {
  ***********************************/
 async function fetchPrayerData(offsetDays = 0) {
   try {
-    const now = new Date();
+    const now = getCurrentTime();
     now.setDate(now.getDate() + offsetDays);
 
     const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -236,7 +276,7 @@ function updateUI(dateObj) {
 
 /** Finds the next upcoming prayer & updates #nextPrayerLabel. */
 function findNextPrayer() {
-  const now = Date.now();
+  const now = getCurrentTimestamp();
   const upcoming = prayerSchedule.filter(p => p.timestamp > now);
   if (upcoming.length === 0) {
     // no upcoming prayers => fetch tomorrow
@@ -245,15 +285,22 @@ function findNextPrayer() {
     fetchPrayerData(1);
     return;
   }
-  nextPrayerData = upcoming[0];
+  const newPrayer = upcoming[0];
 
-  // Fade out before changing
-  nextPrayerLabel.style.opacity = '0';
+  // Only animate if prayer actually changed
+  if (!nextPrayerData || nextPrayerData.name !== newPrayer.name) {
+    nextPrayerData = newPrayer;
 
-  setTimeout(() => {
-    nextPrayerLabel.textContent = `${nextPrayerData.name} @ ${nextPrayerData.time}`;
-    nextPrayerLabel.style.opacity = '1';
-  }, 300);
+    // Fade out before changing
+    nextPrayerLabel.style.opacity = '0';
+
+    setTimeout(() => {
+      nextPrayerLabel.textContent = `${nextPrayerData.name} @ ${nextPrayerData.time}`;
+      nextPrayerLabel.style.opacity = '1';
+    }, 300);
+  } else {
+    nextPrayerData = newPrayer;
+  }
 }
 
 
@@ -272,20 +319,19 @@ function startMainLoop() {
     updatePrayerApproaching();
 
     // 3) Update background dimming every minute
-    if (new Date().getSeconds() === 0) {
+    if (getCurrentTime().getSeconds() === 0) {
       updateBackgroundDimming();
     }
 
-    // 4) Check if next prayer has passed
+    // 4) Check if next prayer has passed and play adhan
     if (nextPrayerData) {
-      const now = Date.now();
-      if (now >= nextPrayerData.timestamp) {
-        // Trigger Adhan if not played
-        if (!playedPrayers.has(nextPrayerData.name)) {
-          playAdhan();
-          playedPrayers.add(nextPrayerData.name);
-        }
-        // Move on to the next prayer
+      const now = getCurrentTimestamp();
+      if (now >= nextPrayerData.timestamp && !playedPrayers.has(nextPrayerData.name)) {
+        // Prayer time reached - play adhan and schedule transition
+        playAdhan();
+        playedPrayers.add(nextPrayerData.name);
+
+        // Schedule transition to next prayer after 1 minute
         setTimeout(() => {
           findNextPrayer();
         }, 60_000);
@@ -296,7 +342,7 @@ function startMainLoop() {
 
 /** Displays local current time in #currentTimeLabel (24-hour format). */
 function displayCurrentTime() {
-  const now = new Date();
+  const now = getCurrentTime();
   let hours   = now.getHours();
   let minutes = now.getMinutes();
   let seconds = now.getSeconds();
@@ -324,19 +370,40 @@ function playAdhan() {
  * Prayer Approaching Indicator
  ***********************************/
 function updatePrayerApproaching() {
-  if (!nextPrayerData) return;
-
-  const now = Date.now();
-  const timeUntilPrayer = nextPrayerData.timestamp - now;
+  const now = getCurrentTimestamp();
   const tenMinutes = 10 * 60 * 1000; // 10 minutes in milliseconds
+  const indicator = document.getElementById('prayerApproachingIndicator');
+  const indicatorText = indicator.querySelector('.indicator-text');
+  const prayerEmoji = indicator.querySelector('.prayer-emoji');
 
-  const nextPrayerLabelElem = document.getElementById('nextPrayerLabel');
+  // Check if we're within 10 minutes before next prayer
+  if (nextPrayerData) {
+    const timeUntilPrayer = nextPrayerData.timestamp - now;
 
-  if (timeUntilPrayer <= tenMinutes && timeUntilPrayer > 0) {
-    nextPrayerLabelElem.classList.add('prayer-approaching');
-  } else {
-    nextPrayerLabelElem.classList.remove('prayer-approaching');
+    if (timeUntilPrayer <= tenMinutes && timeUntilPrayer > 0) {
+      // Prayer is approaching (within 10 min before)
+      indicator.classList.add('show');
+      prayerEmoji.textContent = '🌙';
+      indicatorText.textContent = 'Prayer soon';
+      return;
+    }
   }
+
+  // Check if we're within 10 minutes after any prayer time
+  for (const prayer of prayerSchedule) {
+    const timeSincePrayer = now - prayer.timestamp;
+
+    if (timeSincePrayer >= 0 && timeSincePrayer <= tenMinutes) {
+      // We're within 10 minutes after this prayer
+      indicator.classList.add('show');
+      prayerEmoji.textContent = '🕌';
+      indicatorText.textContent = `${prayer.name} time`;
+      return;
+    }
+  }
+
+  // Not approaching or during any prayer time
+  indicator.classList.remove('show');
 }
 
 
@@ -344,7 +411,7 @@ function updatePrayerApproaching() {
  * Background Dimming
  ***********************************/
 function updateBackgroundDimming() {
-  const now = new Date();
+  const now = getCurrentTime();
   const overlay = document.getElementById('timeDimOverlay');
 
   // Find Isha and Fajr times from schedule
@@ -373,7 +440,7 @@ function scheduleDailyRefresh() {
   if (window._dailyRefreshTimeout) {
     clearTimeout(window._dailyRefreshTimeout);
   }
-  const now = new Date();
+  const now = getCurrentTime();
   const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0,1,0);
   const diff = midnight - now;
   window._dailyRefreshTimeout = setTimeout(() => {

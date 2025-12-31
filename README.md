@@ -16,7 +16,6 @@ Let's go with option 2b (build your own minimal web app). Guide me through it
 Additional requirements #1:
 - The ipad will be up on a bookshelf, so visibility from a distance is important
 - The most visible thing should be the next prayer time
-- Underneath the next prayer time, there should be a small countdown to the next prayer time
 - It would be good to display the date (in Gregorian and Islamic calendars) on the page somewhere
 
 Additional requirements #2:
@@ -42,6 +41,32 @@ Additional requirements #6:
 Additional requirements #7:
 - I want to use geolocation to fetch the correct prayer times, and any time the prayer times get refreshed, it should use geolocation without reprompting the user to allow geolocation. I also want to display the city and country in the bottom right corner in small text as an indicator of the location used so that the user can validate that the prayer times are for the correct location
 
+## Debug Mode
+
+For testing prayer times without waiting, you can use the debug time feature:
+
+**Usage:**
+Open the browser console (F12 or right-click → Inspect → Console) and use:
+
+```javascript
+// Set time to 10 minutes before Maghrib (example: 17:20)
+setDebugTime('2024-12-30 17:20:00')
+
+// Set time to exactly at prayer time
+setDebugTime('2024-12-30 17:30:00')
+
+// Jump to a different date (e.g., during Ramadan)
+setDebugTime('2025-03-15 12:00:00')
+
+// Disable debug mode (return to real time)
+setDebugTime(null)
+```
+
+**Notes:**
+- Time continues to advance from the point you set
+- Prayer data automatically refreshes for the new date
+- Useful for testing prayer approaching indicator, adhan playback, and Islamic date highlighting
+
 ## ChatGPT Summary of Requirements
 
 Prompt: Summarize the requirements for this app so that I can give them to an LLM and get a fully functioning webapp with the same capabilities and look
@@ -53,13 +78,12 @@ Response:
 1. **Device & Purpose**:  
    - The app will run on an old iPad as a dedicated prayer clock display.
 
-2. **Display & Layout**:  
+2. **Display & Layout**:
    - At the top, show "Bismillāhir Raḥmānir Raḥīm" in Arabic calligraphy.
-   - Directly beneath that, display today’s date in both the Gregorian and Islamic (Hijri) calendars.
+   - Directly beneath that, display today's date in both the Gregorian and Islamic (Hijri) calendars.
    - Prominently feature the next upcoming prayer time in very large, easily visible text, ensuring it always fits on a single line.
-   - Below the next prayer, show a countdown timer to that next prayer.
    - Further below, list all five daily prayer times for the current day.
-   - Display the user’s city and country in the bottom-right corner so the user can confirm the correct location is being used.
+   - Display the user's city and country in the bottom-right corner so the user can confirm the correct location is being used.
 
 3. **Functionality**:  
    - Use geolocation to automatically determine the user’s location and fetch accurate daily prayer times.

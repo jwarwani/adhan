@@ -173,34 +173,58 @@
       z-index: 2;
     }
 
-    /* PRAYER APPROACHING ICON */
-    .prayer-icon {
+    /* PRAYER APPROACHING INDICATOR - CORNER */
+    .corner-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
       display: none;
-      font-size: 3rem;
-      margin: 0 15px;
-      vertical-align: middle;
+      flex-direction: column;
+      align-items: center;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.5s ease;
     }
 
-    /* When prayer is approaching - show and animate icon */
-    #nextPrayerLabel.prayer-approaching .prayer-icon {
-      display: inline;
-      animation: bell-ring 2s ease-in-out infinite;
+    .corner-indicator.show {
+      display: flex;
+      animation: fadeIn 0.5s ease forwards;
     }
 
-    @keyframes bell-ring {
+    .prayer-emoji {
+      font-size: 4rem;
+      filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+      animation: gentle-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes gentle-glow {
       0%, 100% {
-        transform: rotate(0deg);
-      }
-      10%, 30% {
-        transform: rotate(-15deg);
-      }
-      20%, 40% {
-        transform: rotate(15deg);
+        filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
       }
       50% {
-        transform: rotate(0deg);
+        filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9));
       }
     }
+
+    .indicator-text {
+      font-family: 'Amiri', serif;
+      font-size: 1.2rem;
+      color: #ffd700;
+      margin-top: 5px;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
 
     /* ISLAMIC DATE HIGHLIGHTING */
     .hijri-date {
@@ -218,6 +242,12 @@
 
   <div id="timeDimOverlay"></div>
 
+  <!-- Prayer approaching indicator in corner -->
+  <div id="prayerApproachingIndicator" class="corner-indicator">
+    <span class="prayer-emoji">🌙</span>
+    <span class="indicator-text">Prayer soon</span>
+  </div>
+
   <header>
     <!-- Bismillah in Arabic calligraphy style -->
     <h2 id="bismillah">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيمِ</h2>
@@ -230,7 +260,6 @@
     <!-- Next prayer display broken into two spans -->
     <div id="nextPrayerLabel">
       <span id="nextPrayerTextPrefix">Next prayer: </span>
-      <span id="approachingIcon" class="prayer-icon">🔔</span>
       <span id="nextPrayerTextDetails">Loading...</span>
     </div>
   </div>
