@@ -1,6 +1,6 @@
 # Xcode Project Setup Instructions
 
-Follow these steps to create the AdhanApp project in Xcode using the generated source files.
+The iOS project is now a complete Xcode project in the git repo. Just clone/pull and open.
 
 ## Prerequisites
 
@@ -11,193 +11,117 @@ Follow these steps to create the AdhanApp project in Xcode using the generated s
 
 ---
 
-## Step 1: Create New Xcode Project
+## Step 1: Open the Project
 
-1. Open Xcode
-2. Click **"Create a new Xcode project"** (or File → New → Project)
-3. Select **iOS** tab at the top
-4. Select **App** and click **Next**
-5. Fill in project details:
-   - **Product Name**: `AdhanApp`
-   - **Team**: Select your Apple ID (or "Add Account" if not logged in)
-   - **Organization Identifier**: `com.yourname` (e.g., `com.jwarwani`)
-   - **Interface**: `SwiftUI`
-   - **Language**: `Swift`
-   - **Storage**: `None`
-   - Uncheck "Include Tests" (optional, can leave checked)
-6. Click **Next**
-7. Choose a location to save the project (e.g., Desktop)
-8. Click **Create**
+1. Clone or pull the repo
+2. Navigate to `ios/` folder
+3. Double-click `AdhanApp.xcodeproj` to open in Xcode
+
+That's it - the project is fully configured.
 
 ---
 
-## Step 2: Configure Project Settings
+## Step 2: Configure Signing (One-Time)
 
-### Set iOS Deployment Target
-
-1. Click on **AdhanApp** in the left sidebar (blue icon at top)
+1. In Xcode, click on **AdhanApp** in the left sidebar (blue project icon)
 2. Select the **AdhanApp** target
-3. Go to **General** tab
-4. Under "Minimum Deployments", change iOS to **15.0**
-
-### Set Device Orientation (iPad Landscape Only)
-
-1. Still in **General** tab
-2. Under "Deployment Info":
-   - Uncheck **iPhone** (iPad only)
-   - Uncheck **Portrait**
-   - Check **Landscape Left** and **Landscape Right**
-
-### Enable Background Audio
-
-1. Go to **Signing & Capabilities** tab
-2. Click **+ Capability** button (top left)
-3. Search for **Background Modes** and double-click to add
-4. Check **Audio, AirPlay, and Picture in Picture**
+3. Go to **Signing & Capabilities** tab
+4. Under "Signing":
+   - Check **Automatically manage signing**
+   - Set **Team** to your Apple ID (click dropdown, select "Add Account" if needed)
+5. The "Bundle Identifier" may need to be unique - change `com.adhan.app` to something like `com.yourname.adhan`
 
 ---
 
-## Step 3: Configure Info.plist
+## Step 3: Build for Simulator (Validation)
 
-1. In the left sidebar, find and click on **Info** (or Info.plist)
-2. Add these entries by clicking the **+** button:
-
-| Key | Type | Value |
-|-----|------|-------|
-| Privacy - Location When In Use Usage Description | String | Your location is used to calculate accurate prayer times for your area. |
-| Requires full screen | Boolean | YES |
-| Status bar is initially hidden | Boolean | YES |
-
-**Note**: If Background Modes capability was added correctly, `UIBackgroundModes` with `audio` should already be there.
-
----
-
-## Step 4: Replace Source Files
-
-1. In Xcode's left sidebar, expand the **AdhanApp** folder (yellow folder icon)
-2. You'll see default files: `AdhanAppApp.swift`, `ContentView.swift`
-
-### Delete Default Files
-1. Right-click on `AdhanAppApp.swift` → Delete → Move to Trash
-2. Right-click on `ContentView.swift` → Delete → Move to Trash
-
-### Add Generated Files
-
-1. Right-click on the **AdhanApp** folder (yellow) → **Add Files to "AdhanApp"**
-2. Navigate to where you cloned the repo: `adhan/ios/AdhanApp/`
-3. Select **all files and folders**:
-   - `AdhanApp.swift`
-   - `ContentView.swift`
-   - `Info.plist` (may conflict - see note below)
-   - `Models/` folder
-   - `Services/` folder
-   - `ViewModels/` folder
-   - `Views/` folder
-4. Make sure these options are set:
-   - ✅ Copy items if needed
-   - ✅ Create groups
-   - Target: ✅ AdhanApp
-5. Click **Add**
-
-**Note about Info.plist**: If Xcode already has an Info.plist, you can either:
-- Manually add the entries from Step 3, or
-- Replace the file entirely (may require updating Build Settings → Info.plist File path)
-
----
-
-## Step 5: Add Assets
-
-### Add Adhan Audio File
-
-1. In Finder, locate `adhan.mp3` in your `adhan/` repo folder
-2. Drag it directly into the Xcode project navigator (left sidebar), into the AdhanApp folder
-3. Make sure:
-   - ✅ Copy items if needed
-   - Target: ✅ AdhanApp
-4. Click **Finish**
-
-### Add Background Image
-
-1. In Finder, locate `mosque.jpg` in your `adhan/` repo folder
-2. Drag it into Xcode the same way
-3. Ensure it's added to the target
-
----
-
-## Step 6: Build for Simulator
-
-1. At the top of Xcode, click the device selector (shows iPhone name)
+1. At the top of Xcode, click the device selector
 2. Select an iPad simulator (e.g., "iPad Pro 11-inch")
-3. Press **⌘R** (Command+R) or click the **Play** button
+3. Press **⌘R** (or click the Play button)
 
-**Expected Result**: App launches in Simulator showing:
-- Black background
-- "Adhan App" in white
-- "Phase 0: Project Foundation" in gray
-- "If you see this, the app builds and runs!" in green
+**Expected Result**: App launches showing "Phase 2: Audio Validation" with Play/Stop buttons.
 
 ---
 
-## Step 7: Deploy to Physical iPad
+## Step 4: Deploy to Physical iPad
 
-### First Time Setup
+### Connect and Select Device
 
-1. Connect your iPad to your Mac via USB
-2. On iPad: Trust this computer when prompted
-3. In Xcode's device selector, choose your iPad (should appear with its name)
-4. Click **Play** to build and run
+1. Connect your iPad to Mac via USB
+2. On iPad: Tap "Trust" when prompted to trust this computer
+3. In Xcode's device selector, choose your iPad (appears by name)
 
-### Signing Issues
+### First-Time Trust
 
-If you see a signing error:
-1. Go to **Signing & Capabilities** tab
-2. Make sure **Team** is set to your Apple ID
-3. If "Provisioning Profile" shows errors, click **Try Again** or select your team again
-
-### Trust Developer on iPad
-
-First time running on a device:
-1. Build will succeed but app won't launch
-2. On iPad: **Settings → General → VPN & Device Management**
-3. Under "Developer App", tap your Apple ID
-4. Tap **Trust "Apple Development: your@email.com"**
-5. Tap **Trust** to confirm
-6. Go back to Xcode and click **Play** again
+1. Click **Run** (⌘R)
+2. Build will succeed but app may not launch
+3. On iPad: **Settings → General → VPN & Device Management**
+4. Tap your Apple ID under "Developer App"
+5. Tap **Trust "Apple Development: your@email.com"**
+6. Return to Xcode and click **Run** again
 
 ---
 
-## Validation Checkpoint
+## Step 5: Critical Audio Test
 
-After completing these steps, you should see:
+Once the app is running on your iPad:
 
-✅ App builds without errors
-✅ App runs in Simulator showing placeholder text
-✅ App runs on physical iPad
-✅ Screen stays on (doesn't dim)
+1. **Verify** the screen shows a green checkmark: "adhan.mp3 found in bundle"
+2. Tap **Play Adhan** - audio should start
+3. **While audio is playing, lock the screen** (press power button)
+4. **Listen for 10+ seconds**
+
+### Results
+
+- ✅ **Audio continues with screen locked** → Phase 2 passes, proceed with development
+- ❌ **Audio stops when screen locked** → Report back for debugging
 
 ---
 
 ## Troubleshooting
 
-### "Cannot find 'X' in scope"
-- Make sure all source files are added to the target
-- Check that files have the correct target membership (select file, check Inspector on right)
+### "adhan.mp3 NOT FOUND" (red X)
 
-### "Signing for requires a development team"
-- Go to Signing & Capabilities
-- Select your Apple ID as the Team
+The audio file reference might be broken. In Xcode:
+1. Right-click on **AdhanApp** folder in sidebar
+2. Select "Add Files to AdhanApp"
+3. Navigate to `adhan/adhan.mp3` (in repo root)
+4. Ensure "Copy items if needed" is checked
+5. Click Add
 
-### "Unable to install 'AdhanApp'"
-- On iPad: Settings → General → Device Management → Trust the developer
+### Signing Error
 
-### App crashes immediately
-- Check console output (View → Debug Area → Activate Console)
-- Look for error messages and report them
+- Make sure Team is set to your Apple ID
+- Try changing Bundle Identifier to something unique
+
+### App Won't Launch on Device
+
+- Check Settings → General → VPN & Device Management
+- Trust the developer certificate
+
+### Build Errors
+
+- Clean build: Product → Clean Build Folder (⇧⌘K)
+- Close and reopen Xcode
 
 ---
 
-## Next Steps
+## Project Structure
 
-Once Phase 0 validation passes:
-1. Report success: "App builds and runs on iPad"
-2. Proceed to Phase 2 (Audio) - the critical validation
+```
+ios/
+├── AdhanApp.xcodeproj/      # Xcode project (open this)
+│   └── project.pbxproj      # Project configuration
+└── AdhanApp/                # Source code
+    ├── AdhanApp.swift       # App entry point
+    ├── ContentView.swift    # Main view
+    ├── Info.plist           # App configuration
+    ├── AdhanApp.entitlements
+    ├── Assets.xcassets/     # Images, colors
+    ├── Models/              # Data models
+    ├── Services/            # API, Audio, Location
+    ├── ViewModels/          # State management
+    └── Views/               # SwiftUI views
+```
+
+All changes you make in Xcode are saved directly to these files in the git repo.
