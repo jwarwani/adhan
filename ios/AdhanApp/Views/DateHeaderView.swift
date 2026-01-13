@@ -7,20 +7,20 @@ struct DateHeaderView: View {
     let hijriDate: String
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             // Bismillah
             Text("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ")
-                .font(.system(size: 28))
+                .font(.system(size: 36))
                 .foregroundColor(Color(red: 0.85, green: 0.65, blue: 0.13)) // Gold
 
             // Gregorian date
             Text(gregorianDate)
-                .font(.system(size: 18))
+                .font(.system(size: 22))
                 .foregroundColor(.white.opacity(0.8))
 
             // Hijri date
             Text(hijriDate)
-                .font(.system(size: 16))
+                .font(.system(size: 20))
                 .foregroundColor(.white.opacity(0.6))
         }
     }

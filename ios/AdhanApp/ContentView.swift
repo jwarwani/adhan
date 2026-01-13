@@ -52,7 +52,9 @@ struct ContentView: View {
                     // Prayer times grid
                     PrayerListView(
                         prayers: prayerManager.prayers,
-                        nextPrayer: prayerManager.nextPrayer
+                        nextPrayer: prayerManager.nextPrayer,
+                        approachingPrayer: prayerManager.approachingPrayer,
+                        isAdhanPlaying: prayerManager.isAdhanPlaying
                     )
                     .padding(.horizontal, 40)
                     .padding(.bottom, 40)

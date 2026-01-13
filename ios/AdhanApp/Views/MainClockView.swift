@@ -13,7 +13,7 @@ struct MainClockView: View {
 
     var body: some View {
         Text(timeString)
-            .font(.system(size: 120, weight: .thin, design: .default))
+            .font(.system(size: 180, weight: .thin, design: .default))
             .foregroundColor(.white)
             .monospacedDigit()
     }

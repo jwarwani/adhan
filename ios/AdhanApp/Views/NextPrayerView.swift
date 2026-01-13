@@ -26,7 +26,7 @@ struct NextPrayerView: View {
 
     var body: some View {
         if let prayer = prayer {
-            HStack(spacing: 8) {
+            HStack(spacing: 12) {
                 Text("Next:")
                     .foregroundColor(.white.opacity(0.6))
 
@@ -44,7 +44,7 @@ struct NextPrayerView: View {
                 Text(timeUntil)
                     .foregroundColor(.white.opacity(0.6))
             }
-            .font(.system(size: 20))
+            .font(.system(size: 32))
         }
     }
 }

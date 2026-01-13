@@ -8,6 +8,7 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     private var audioPlayer: AVAudioPlayer?
     @Published var isPlaying = false
+    private var completionHandler: (() -> Void)?
 
     private override init() {
         super.init()
@@ -106,10 +107,14 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     // MARK: - Playback Control
 
     /// Play the adhan audio file
-    func playAdhan() {
+    func playAdhan(completion: (() -> Void)? = nil) {
+        // Store completion handler
+        self.completionHandler = completion
+
         // Find the audio file in the bundle
         guard let url = Bundle.main.url(forResource: "adhan", withExtension: "mp3") else {
             print("AdhanAudioManager: ERROR - adhan.mp3 not found in bundle")
+            completion?()
             return
         }
 
@@ -130,9 +135,11 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 print("AdhanAudioManager: Adhan playback started")
             } else {
                 print("AdhanAudioManager: ERROR - playback failed to start")
+                completion?()
             }
         } catch {
             print("AdhanAudioManager: ERROR - \(error)")
+            completion?()
         }
     }
 
@@ -148,10 +155,14 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
         print("AdhanAudioManager: Adhan playback finished (success: \(flag))")
+        completionHandler?()
+        completionHandler = nil
     }
 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         isPlaying = false
         print("AdhanAudioManager: Decode error - \(error?.localizedDescription ?? "unknown")")
+        completionHandler?()
+        completionHandler = nil
     }
 }

@@ -21,6 +21,17 @@ class PrayerTimesManager: ObservableObject {
     // Night mode (after Isha until Fajr)
     @Published var isNightMode = false
 
+    // Adhan playing state
+    @Published var isAdhanPlaying = false
+
+    // Prayer approaching (within 15 minutes)
+    var approachingPrayer: Prayer? {
+        guard let next = nextPrayer else { return nil }
+        let timeUntil = next.time.timeIntervalSince(currentTime)
+        // Approaching if within 15 minutes (900 seconds)
+        return timeUntil > 0 && timeUntil <= 900 ? next : nil
+    }
+
     // MARK: - Private
 
     private var timer: AnyCancellable?
@@ -150,7 +161,12 @@ class PrayerTimesManager: ObservableObject {
     /// Play adhan for a prayer
     private func playAdhan(for prayer: Prayer) {
         print("PrayerTimesManager: Playing adhan for \(prayer.name)")
-        audioManager.playAdhan()
+        isAdhanPlaying = true
+        audioManager.playAdhan { [weak self] in
+            Task { @MainActor in
+                self?.isAdhanPlaying = false
+            }
+        }
     }
 
     /// Advance to the next prayer in the schedule
@@ -285,6 +301,7 @@ class PrayerTimesManager: ObservableObject {
     /// Stop any playing adhan
     func stopAdhan() {
         audioManager.stopAdhan()
+        isAdhanPlaying = false
     }
 
     // MARK: - Debug Controls
@@ -292,7 +309,12 @@ class PrayerTimesManager: ObservableObject {
     /// Trigger adhan immediately (for testing)
     func triggerAdhanNow() {
         print("PrayerTimesManager: [DEBUG] Triggering adhan manually")
-        audioManager.playAdhan()
+        isAdhanPlaying = true
+        audioManager.playAdhan { [weak self] in
+            Task { @MainActor in
+                self?.isAdhanPlaying = false
+            }
+        }
     }
 
     /// Simulate the next prayer time being reached (for testing auto-play)
