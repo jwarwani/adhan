@@ -1,1 +1,24 @@
+# macOS
 .DS_Store
+
+# Xcode user-specific files (don't share these)
+xcuserdata/
+*.xcuserstate
+
+# Xcode build artifacts
+DerivedData/
+build/
+*.ipa
+
+# Swift Package Manager (if used later)
+.build/
+.swiftpm/
+
+# CocoaPods (if used later)
+Pods/
+
+# Fastlane (if used later)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
