@@ -286,4 +286,33 @@ class PrayerTimesManager: ObservableObject {
     func stopAdhan() {
         audioManager.stopAdhan()
     }
+
+    // MARK: - Debug Controls
+
+    /// Trigger adhan immediately (for testing)
+    func triggerAdhanNow() {
+        print("PrayerTimesManager: [DEBUG] Triggering adhan manually")
+        audioManager.playAdhan()
+    }
+
+    /// Simulate the next prayer time being reached (for testing auto-play)
+    func simulateNextPrayerTime() {
+        guard let next = nextPrayer else {
+            print("PrayerTimesManager: [DEBUG] No next prayer to simulate")
+            return
+        }
+
+        print("PrayerTimesManager: [DEBUG] Simulating \(next.name) prayer time reached")
+
+        // Mark as played and trigger adhan
+        let prayerKey = makePrayerKey(next)
+        if !playedPrayers.contains(prayerKey) {
+            playedPrayers.insert(prayerKey)
+            playAdhan(for: next)
+            advanceToNextPrayer()
+        } else {
+            print("PrayerTimesManager: [DEBUG] Prayer already played, just triggering adhan")
+            audioManager.playAdhan()
+        }
+    }
 }

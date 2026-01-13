@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var prayerManager = PrayerTimesManager()
     @State private var showKioskInstructions = false
+    @State private var showDebugPanel = false
     @AppStorage("hasSeenKioskInstructions") private var hasSeenInstructions = false
 
     // Gold accent color
@@ -33,8 +34,11 @@ struct ContentView: View {
 
                     Spacer()
 
-                    // Large clock display
+                    // Large clock display (triple-tap for debug mode)
                     MainClockView(currentTime: prayerManager.currentTime)
+                        .onTapGesture(count: 3) {
+                            showDebugPanel.toggle()
+                        }
 
                     // Next prayer indicator
                     NextPrayerView(
@@ -92,6 +96,14 @@ struct ContentView: View {
                 // Night mode overlay
                 NightOverlayView(isNightMode: prayerManager.isNightMode)
 
+                // Debug panel (triple-tap clock to show)
+                if showDebugPanel {
+                    DebugPanelView(
+                        prayerManager: prayerManager,
+                        isPresented: $showDebugPanel
+                    )
+                }
+
                 // Kiosk instructions overlay
                 if showKioskInstructions {
                     KioskInstructionsView(isPresented: $showKioskInstructions)
@@ -132,6 +144,99 @@ struct ContentView: View {
                 showKioskInstructions = true
             }
         }
+    }
+}
+
+// MARK: - Debug Panel
+
+struct DebugPanelView: View {
+    @ObservedObject var prayerManager: PrayerTimesManager
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("🛠 Debug Panel")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+
+            Divider().background(Color.white.opacity(0.3))
+
+            // Next prayer info
+            if let next = prayerManager.nextPrayer {
+                Text("Next: \(next.name) @ \(next.formattedTime)")
+                    .foregroundColor(.white.opacity(0.8))
+            } else {
+                Text("No upcoming prayer today")
+                    .foregroundColor(.white.opacity(0.8))
+            }
+
+            // Trigger adhan button
+            Button(action: {
+                prayerManager.triggerAdhanNow()
+            }) {
+                HStack {
+                    Image(systemName: "speaker.wave.3.fill")
+                    Text("Trigger Adhan Now")
+                }
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.green)
+                .cornerRadius(10)
+            }
+
+            // Simulate next prayer time
+            Button(action: {
+                prayerManager.simulateNextPrayerTime()
+            }) {
+                HStack {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text("Simulate Prayer Time Reached")
+                }
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.orange)
+                .cornerRadius(10)
+            }
+
+            // Stop adhan button
+            Button(action: {
+                prayerManager.stopAdhan()
+            }) {
+                HStack {
+                    Image(systemName: "stop.fill")
+                    Text("Stop Adhan")
+                }
+                .font(.system(size: 18, weight: .medium))
+                .foregroundColor(.black)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.red)
+                .cornerRadius(10)
+            }
+
+            Text("Triple-tap clock to toggle this panel")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.5))
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.9))
+        )
+        .frame(maxWidth: 400)
+        .padding(40)
     }
 }
 
