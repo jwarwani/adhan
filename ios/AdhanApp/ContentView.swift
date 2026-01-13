@@ -1,107 +1,136 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var audioManager = AdhanAudioManager.shared
+    @StateObject private var prayerManager = PrayerTimesManager()
+    @State private var showKioskInstructions = false
+    @AppStorage("hasSeenKioskInstructions") private var hasSeenInstructions = false
+
+    // Gold accent color
+    private let goldColor = Color(red: 0.85, green: 0.65, blue: 0.13)
 
     var body: some View {
-        ZStack {
-            // Background color
-            Color.black
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                // Background image
+                Image("mosque")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
 
-            VStack(spacing: 30) {
-                Text("Adhan App")
-                    .font(.system(size: 48, weight: .light))
-                    .foregroundColor(.white)
+                // Dark overlay for readability
+                Color.black.opacity(0.6)
+                    .ignoresSafeArea()
 
-                Text("Phase 2: Audio Validation")
-                    .font(.system(size: 24))
-                    .foregroundColor(.gray)
+                // Main content
+                VStack(spacing: 0) {
+                    // Header with dates
+                    DateHeaderView(
+                        gregorianDate: prayerManager.gregorianDate,
+                        hijriDate: prayerManager.hijriDate
+                    )
+                    .padding(.top, 40)
 
-                // Audio test section
-                VStack(spacing: 20) {
-                    Text("CRITICAL TEST")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.orange)
+                    Spacer()
 
-                    Text("1. Tap 'Play Adhan' below\n2. While audio is playing, LOCK THE SCREEN\n3. If audio continues, Phase 2 passes!")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                    // Large clock display
+                    MainClockView(currentTime: prayerManager.currentTime)
 
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            audioManager.playAdhan()
-                        }) {
-                            HStack {
-                                Image(systemName: "play.fill")
-                                Text("Play Adhan")
-                            }
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 15)
-                            .background(Color.green)
-                            .cornerRadius(12)
-                        }
+                    // Next prayer indicator
+                    NextPrayerView(
+                        prayer: prayerManager.nextPrayer,
+                        currentTime: prayerManager.currentTime
+                    )
+                    .padding(.top, 20)
 
-                        Button(action: {
-                            audioManager.stopAdhan()
-                        }) {
-                            HStack {
-                                Image(systemName: "stop.fill")
-                                Text("Stop")
-                            }
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 30)
-                            .padding(.vertical, 15)
-                            .background(Color.red)
-                            .cornerRadius(12)
-                        }
-                    }
+                    Spacer()
 
-                    // Status indicator
+                    // Prayer times grid
+                    PrayerListView(
+                        prayers: prayerManager.prayers,
+                        nextPrayer: prayerManager.nextPrayer
+                    )
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 40)
+                }
+
+                // Location indicator (bottom right)
+                VStack {
+                    Spacer()
                     HStack {
-                        Circle()
-                            .fill(audioManager.isPlaying ? Color.green : Color.gray)
-                            .frame(width: 12, height: 12)
-                        Text(audioManager.isPlaying ? "Audio Playing" : "Audio Stopped")
-                            .foregroundColor(audioManager.isPlaying ? .green : .gray)
+                        Spacer()
+                        HStack(spacing: 6) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 12))
+                            Text(prayerManager.locationName)
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(.white.opacity(0.6))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(20)
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                     }
-                    .font(.system(size: 16))
                 }
-                .padding(30)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.1))
-                )
 
-                // File check status
-                VStack(spacing: 8) {
-                    if Bundle.main.url(forResource: "adhan", withExtension: "mp3") != nil {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("adhan.mp3 found in bundle")
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.red)
-                            Text("adhan.mp3 NOT FOUND - add to Xcode project")
-                                .foregroundColor(.red)
-                        }
+                // Loading indicator
+                if prayerManager.isLoading {
+                    VStack {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                        Text("Loading prayer times...")
+                            .foregroundColor(.white)
+                            .padding(.top, 10)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.7))
                 }
-                .font(.system(size: 14))
+
+                // Night mode overlay
+                NightOverlayView(isNightMode: prayerManager.isNightMode)
+
+                // Kiosk instructions overlay
+                if showKioskInstructions {
+                    KioskInstructionsView(isPresented: $showKioskInstructions)
+                }
+
+                // Error indicator
+                if let error = prayerManager.errorMessage {
+                    VStack {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(error)
+                                .foregroundColor(.white)
+                            Button("Retry") {
+                                Task {
+                                    await prayerManager.refresh()
+                                }
+                            }
+                            .foregroundColor(goldColor)
+                        }
+                        .font(.system(size: 14))
+                        .padding(12)
+                        .background(Color.black.opacity(0.8))
+                        .cornerRadius(8)
+                        Spacer()
+                    }
+                    .padding(.top, 20)
+                }
             }
         }
+        .ignoresSafeArea()
         .onAppear {
             // Keep screen always on for kiosk mode
             UIApplication.shared.isIdleTimerDisabled = true
+
+            // Show kiosk instructions on first launch
+            if !hasSeenInstructions {
+                showKioskInstructions = true
+            }
         }
     }
 }
