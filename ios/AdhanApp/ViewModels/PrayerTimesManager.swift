@@ -8,7 +8,7 @@ class PrayerTimesManager: ObservableObject {
     // MARK: - Published State
 
     @Published var prayers: [Prayer] = []
-    @Published var nextPrayer: Prayer?
+    @Published var focusedPrayer: Prayer?  // The prayer shown in countdown and with indicator
     @Published var currentTime = Date()
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -24,12 +24,23 @@ class PrayerTimesManager: ObservableObject {
     // Adhan playing state
     @Published var isAdhanPlaying = false
 
-    // Prayer approaching (within 15 minutes)
-    var approachingPrayer: Prayer? {
-        guard let next = nextPrayer else { return nil }
-        let timeUntil = next.time.timeIntervalSince(currentTime)
-        // Approaching if within 15 minutes (900 seconds)
-        return timeUntil > 0 && timeUntil <= 900 ? next : nil
+    // Derived indicator states based on focusedPrayer
+    var isApproaching: Bool {
+        guard let focused = focusedPrayer else { return false }
+        let timeUntil = focused.time.timeIntervalSince(currentTime)
+        // Approaching if within 15 minutes (900 seconds) and not yet reached
+        return timeUntil > 0 && timeUntil <= 900
+    }
+
+    var isActive: Bool {
+        guard focusedPrayer != nil else { return false }
+        // Active when adhan is playing (prayer time has been reached)
+        return isAdhanPlaying
+    }
+
+    // For backward compatibility with NextPrayerView
+    var nextPrayer: Prayer? {
+        return focusedPrayer
     }
 
     // MARK: - Private
@@ -48,7 +59,7 @@ class PrayerTimesManager: ObservableObject {
     init() {
         // Start with sample data while loading
         prayers = Prayer.samples
-        updateNextPrayer()
+        updateFocusedPrayer()
 
         // Start the timer
         startTimer()
@@ -83,7 +94,7 @@ class PrayerTimesManager: ObservableObject {
             gregorianDate = result.gregorianDate
             hijriDate = result.hijriDate
 
-            updateNextPrayer()
+            updateFocusedPrayer()
             updateNightMode()
 
             print("PrayerTimesManager: Loaded \(prayers.count) prayers")
@@ -143,17 +154,17 @@ class PrayerTimesManager: ObservableObject {
 
     /// Check if it's time to play adhan
     private func checkPrayerTime() {
-        guard let next = nextPrayer else { return }
+        guard let focused = focusedPrayer else { return }
 
         // Check if current time has reached or passed the prayer time
-        if currentTime >= next.time {
-            let prayerKey = makePrayerKey(next)
+        if currentTime >= focused.time {
+            let prayerKey = makePrayerKey(focused)
 
             // Only play if we haven't played this prayer today
             if !playedPrayers.contains(prayerKey) {
                 playedPrayers.insert(prayerKey)
-                playAdhan(for: next)
-                advanceToNextPrayer()
+                playAdhan(for: focused)
+                // Note: advanceToNextPrayer is called when adhan FINISHES, not here
             }
         }
     }
@@ -165,6 +176,8 @@ class PrayerTimesManager: ObservableObject {
         audioManager.playAdhan { [weak self] in
             Task { @MainActor in
                 self?.isAdhanPlaying = false
+                // Advance to next prayer AFTER adhan finishes
+                self?.advanceToNextPrayer()
             }
         }
     }
@@ -174,11 +187,11 @@ class PrayerTimesManager: ObservableObject {
         currentPrayerIndex += 1
 
         if currentPrayerIndex < prayers.count {
-            nextPrayer = prayers[currentPrayerIndex]
+            focusedPrayer = prayers[currentPrayerIndex]
             updateNightMode()
         } else {
             // All prayers done for today, next is Fajr tomorrow
-            nextPrayer = nil
+            focusedPrayer = nil
 
             // Fetch tomorrow's times
             Task {
@@ -187,22 +200,22 @@ class PrayerTimesManager: ObservableObject {
         }
     }
 
-    /// Update which prayer is next based on current time
-    private func updateNextPrayer() {
+    /// Update which prayer is focused based on current time
+    private func updateFocusedPrayer() {
         let now = Date()
 
         // Find the next upcoming prayer
         for (index, prayer) in prayers.enumerated() {
             if prayer.time > now {
                 currentPrayerIndex = index
-                nextPrayer = prayer
+                focusedPrayer = prayer
                 return
             }
         }
 
         // All prayers have passed for today
         currentPrayerIndex = prayers.count
-        nextPrayer = nil
+        focusedPrayer = nil
 
         // Fetch tomorrow's times
         Task {
@@ -319,22 +332,26 @@ class PrayerTimesManager: ObservableObject {
 
     /// Simulate the next prayer time being reached (for testing auto-play)
     func simulateNextPrayerTime() {
-        guard let next = nextPrayer else {
-            print("PrayerTimesManager: [DEBUG] No next prayer to simulate")
+        guard let focused = focusedPrayer else {
+            print("PrayerTimesManager: [DEBUG] No focused prayer to simulate")
             return
         }
 
-        print("PrayerTimesManager: [DEBUG] Simulating \(next.name) prayer time reached")
+        print("PrayerTimesManager: [DEBUG] Simulating \(focused.name) prayer time reached")
 
-        // Mark as played and trigger adhan
-        let prayerKey = makePrayerKey(next)
+        // Mark as played and trigger adhan (advance happens when adhan finishes)
+        let prayerKey = makePrayerKey(focused)
         if !playedPrayers.contains(prayerKey) {
             playedPrayers.insert(prayerKey)
-            playAdhan(for: next)
-            advanceToNextPrayer()
+            playAdhan(for: focused)
         } else {
             print("PrayerTimesManager: [DEBUG] Prayer already played, just triggering adhan")
-            audioManager.playAdhan()
+            isAdhanPlaying = true
+            audioManager.playAdhan { [weak self] in
+                Task { @MainActor in
+                    self?.isAdhanPlaying = false
+                }
+            }
         }
     }
 }

@@ -1,9 +1,18 @@
 import SwiftUI
 
 /// Large clock display showing current time
-/// Full styling in Phase 5
+/// Scales proportionally based on screen width
 struct MainClockView: View {
     let currentTime: Date
+    let screenWidth: CGFloat
+
+    // Reference width: 10th gen iPad landscape (1180pt)
+    // All sizes are calibrated to look correct at this width
+    private let referenceWidth: CGFloat = 1180
+
+    private var scale: CGFloat {
+        screenWidth / referenceWidth
+    }
 
     private var timeString: String {
         let formatter = DateFormatter()
@@ -13,7 +22,7 @@ struct MainClockView: View {
 
     var body: some View {
         Text(timeString)
-            .font(.system(size: 180, weight: .thin, design: .default))
+            .font(.system(size: 180 * scale, weight: .thin, design: .default))
             .foregroundColor(.white)
             .monospacedDigit()
     }
@@ -22,6 +31,6 @@ struct MainClockView: View {
 #Preview {
     ZStack {
         Color.black
-        MainClockView(currentTime: Date())
+        MainClockView(currentTime: Date(), screenWidth: 1180)
     }
 }

@@ -28,36 +28,42 @@ struct ContentView: View {
                     // Header with dates
                     DateHeaderView(
                         gregorianDate: prayerManager.gregorianDate,
-                        hijriDate: prayerManager.hijriDate
+                        hijriDate: prayerManager.hijriDate,
+                        screenWidth: geometry.size.width
                     )
-                    .padding(.top, 40)
+                    .padding(.top, 40 * (geometry.size.width / 1180))
 
                     Spacer()
 
                     // Large clock display (triple-tap for debug mode)
-                    MainClockView(currentTime: prayerManager.currentTime)
-                        .onTapGesture(count: 3) {
-                            showDebugPanel.toggle()
-                        }
+                    MainClockView(
+                        currentTime: prayerManager.currentTime,
+                        screenWidth: geometry.size.width
+                    )
+                    .onTapGesture(count: 3) {
+                        showDebugPanel.toggle()
+                    }
 
                     // Next prayer indicator
                     NextPrayerView(
-                        prayer: prayerManager.nextPrayer,
-                        currentTime: prayerManager.currentTime
+                        prayer: prayerManager.focusedPrayer,
+                        currentTime: prayerManager.currentTime,
+                        screenWidth: geometry.size.width
                     )
-                    .padding(.top, 20)
+                    .padding(.top, 20 * (geometry.size.width / 1180))
 
                     Spacer()
 
                     // Prayer times grid
                     PrayerListView(
                         prayers: prayerManager.prayers,
-                        nextPrayer: prayerManager.nextPrayer,
-                        approachingPrayer: prayerManager.approachingPrayer,
-                        isAdhanPlaying: prayerManager.isAdhanPlaying
+                        focusedPrayer: prayerManager.focusedPrayer,
+                        isApproaching: prayerManager.isApproaching,
+                        isActive: prayerManager.isActive,
+                        screenWidth: geometry.size.width
                     )
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 40 * (geometry.size.width / 1180))
+                    .padding(.bottom, 40 * (geometry.size.width / 1180))
                 }
 
                 // Location indicator (bottom right)
@@ -65,19 +71,20 @@ struct ContentView: View {
                     Spacer()
                     HStack {
                         Spacer()
-                        HStack(spacing: 6) {
+                        let scale = geometry.size.width / 1180
+                        HStack(spacing: 6 * scale) {
                             Image(systemName: "location.fill")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12 * scale))
                             Text(prayerManager.locationName)
-                                .font(.system(size: 14))
+                                .font(.system(size: 14 * scale))
                         }
                         .foregroundColor(.white.opacity(0.6))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16 * scale)
+                        .padding(.vertical, 8 * scale)
                         .background(Color.black.opacity(0.3))
-                        .cornerRadius(20)
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
+                        .cornerRadius(20 * scale)
+                        .padding(.trailing, 20 * scale)
+                        .padding(.bottom, 20 * scale)
                     }
                 }
 
@@ -171,10 +178,13 @@ struct DebugPanelView: View {
 
             Divider().background(Color.white.opacity(0.3))
 
-            // Next prayer info
-            if let next = prayerManager.nextPrayer {
-                Text("Next: \(next.name) @ \(next.formattedTime)")
+            // Focused prayer info
+            if let focused = prayerManager.focusedPrayer {
+                Text("Focused: \(focused.name) @ \(focused.formattedTime)")
                     .foregroundColor(.white.opacity(0.8))
+                Text("Approaching: \(prayerManager.isApproaching ? "Yes" : "No"), Active: \(prayerManager.isActive ? "Yes" : "No")")
+                    .foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 14))
             } else {
                 Text("No upcoming prayer today")
                     .foregroundColor(.white.opacity(0.8))
