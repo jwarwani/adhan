@@ -84,55 +84,103 @@ struct LocationSettings: Codable {
 - **Automatic (default):** Use device GPS
 - **Manual:** User searches for and selects a city, or enters coordinates
 
-#### 1.4 Adhan Preferences (Per-Prayer Toggle)
-Users often want different behavior for different prayers (e.g., silent during Fajr when family sleeps).
+#### 1.4 Adhan Preferences (Per-Prayer Alert Mode)
+Users often want different behavior for different prayers (e.g., silent during Fajr when family sleeps, notification-only at work).
+
+Each prayer has three alert options:
+
+| Mode | Behavior |
+|------|----------|
+| **Adhan** | Full adhan audio plays |
+| **Notification** | Visual indicator only (screen highlights, no sound) |
+| **Silent** | No alert at all |
 
 ```swift
-struct AdhanPreferences: Codable {
-    var fajrEnabled: Bool = true
-    var dhuhrEnabled: Bool = true
-    var asrEnabled: Bool = true
-    var maghribEnabled: Bool = true
-    var ishaEnabled: Bool = true
+enum PrayerAlertMode: String, CaseIterable, Codable {
+    case adhan = "adhan"              // Full adhan audio
+    case notification = "notification" // Visual only, no sound
+    case silent = "silent"            // No alert
 
-    // Which adhan sound to use
-    var adhanSound: AdhanSound = .standard
-}
+    var displayName: String {
+        switch self {
+        case .adhan: return "Adhan"
+        case .notification: return "Notification"
+        case .silent: return "Silent"
+        }
+    }
 
-enum AdhanSound: String, CaseIterable, Codable {
-    case standard = "adhan"           // Current full adhan
-    case makkah = "adhan_makkah"      // Makkah-style
-    case silent = "silent"            // Visual notification only
-
-    var displayName: String { ... }
+    var icon: String {
+        switch self {
+        case .adhan: return "speaker.wave.3.fill"
+        case .notification: return "bell.fill"
+        case .silent: return "bell.slash.fill"
+        }
+    }
 }
 ```
 
-#### 1.5 Settings Model
+#### 1.5 Audio Files
+
+The app uses the existing adhan audio files in the bundle:
+
+| File | Purpose |
+|------|---------|
+| `adhan.mp3` | Standard adhan (for Dhuhr, Asr, Maghrib, Isha) |
+| `adhan_fajr.mp3` | Fajr-specific adhan (**needs to be obtained**) |
+
+**Why Fajr is different:** The Fajr adhan traditionally includes an additional phrase: "الصلاة خير من النوم" (As-salatu khayrun min an-nawm / "Prayer is better than sleep"). This phrase is only recited in the Fajr adhan.
+
+#### 1.6 Settings Model
 
 ```swift
 class AppSettings: ObservableObject {
+    // Prayer calculation
     @AppStorage("calculationMethod") var calculationMethod: Int = 2
     @AppStorage("asrSchool") var asrSchool: Int = 1
+
+    // Location
     @AppStorage("useAutoLocation") var useAutoLocation: Bool = true
     @AppStorage("manualLatitude") var manualLatitude: Double = 0
     @AppStorage("manualLongitude") var manualLongitude: Double = 0
     @AppStorage("manualCityName") var manualCityName: String = ""
 
-    // Per-prayer adhan toggles
-    @AppStorage("adhanFajr") var adhanFajr: Bool = true
-    @AppStorage("adhanDhuhr") var adhanDhuhr: Bool = true
-    @AppStorage("adhanAsr") var adhanAsr: Bool = true
-    @AppStorage("adhanMaghrib") var adhanMaghrib: Bool = true
-    @AppStorage("adhanIsha") var adhanIsha: Bool = true
+    // Per-prayer alert modes (adhan / notification / silent)
+    @AppStorage("alertModeFajr") var alertModeFajr: String = "adhan"
+    @AppStorage("alertModeDhuhr") var alertModeDhuhr: String = "adhan"
+    @AppStorage("alertModeAsr") var alertModeAsr: String = "adhan"
+    @AppStorage("alertModeMaghrib") var alertModeMaghrib: String = "adhan"
+    @AppStorage("alertModeIsha") var alertModeIsha: String = "adhan"
 
-    @AppStorage("adhanSound") var adhanSound: String = "adhan"
+    // Convenience methods
+    func alertMode(for prayer: String) -> PrayerAlertMode {
+        let raw: String
+        switch prayer {
+        case "Fajr": raw = alertModeFajr
+        case "Dhuhr": raw = alertModeDhuhr
+        case "Asr": raw = alertModeAsr
+        case "Maghrib": raw = alertModeMaghrib
+        case "Isha": raw = alertModeIsha
+        default: raw = "adhan"
+        }
+        return PrayerAlertMode(rawValue: raw) ?? .adhan
+    }
+
+    func setAlertMode(_ mode: PrayerAlertMode, for prayer: String) {
+        switch prayer {
+        case "Fajr": alertModeFajr = mode.rawValue
+        case "Dhuhr": alertModeDhuhr = mode.rawValue
+        case "Asr": alertModeAsr = mode.rawValue
+        case "Maghrib": alertModeMaghrib = mode.rawValue
+        case "Isha": alertModeIsha = mode.rawValue
+        default: break
+        }
+    }
 }
 ```
 
 ### Settings NOT to Include (Keep Simple)
 - Volume control (use device volume)
-- Custom notification sounds beyond 2-3 options
+- Multiple adhan reciter options (use existing audio files only)
 - Hijri date adjustments
 - Custom prayer time offsets
 - Themes/colors (keep the unified Islamic aesthetic)
@@ -190,16 +238,14 @@ Settings should be **discoverable but unobtrusive**—the main clock view remain
 | [x] Use automatic location               |
 |     Queens, NY                           |
 |                                          |
-| ADHAN                                    |
+| PRAYER ALERTS                            |
 | ---------------------------------------- |
-| Sound                        [Standard]  |
 |                                          |
-| Play adhan for:                          |
-| Fajr      [ON]                           |
-| Dhuhr     [ON]                           |
-| Asr       [ON]                           |
-| Maghrib   [ON]                           |
-| Isha      [ON]                           |
+| Fajr        [🔊 Adhan ▾]                 |
+| Dhuhr       [🔊 Adhan ▾]                 |
+| Asr         [🔔 Notification ▾]          |
+| Maghrib     [🔊 Adhan ▾]                 |
+| Isha        [🔊 Adhan ▾]                 |
 |                                          |
 | ABOUT                                    |
 | ---------------------------------------- |
@@ -241,18 +287,12 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Adhan") {
-                    Picker("Sound", selection: $settings.adhanSound) {
-                        Text("Standard").tag("adhan")
-                        Text("Makkah Style").tag("adhan_makkah")
-                        Text("Silent").tag("silent")
-                    }
-
-                    Toggle("Fajr", isOn: $settings.adhanFajr)
-                    Toggle("Dhuhr", isOn: $settings.adhanDhuhr)
-                    Toggle("Asr", isOn: $settings.adhanAsr)
-                    Toggle("Maghrib", isOn: $settings.adhanMaghrib)
-                    Toggle("Isha", isOn: $settings.adhanIsha)
+                Section("Prayer Alerts") {
+                    PrayerAlertRow(prayer: "Fajr", mode: $settings.alertModeFajr)
+                    PrayerAlertRow(prayer: "Dhuhr", mode: $settings.alertModeDhuhr)
+                    PrayerAlertRow(prayer: "Asr", mode: $settings.alertModeAsr)
+                    PrayerAlertRow(prayer: "Maghrib", mode: $settings.alertModeMaghrib)
+                    PrayerAlertRow(prayer: "Isha", mode: $settings.alertModeIsha)
                 }
 
                 Section("About") {
@@ -273,6 +313,24 @@ struct SettingsView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { isPresented = false }
                 }
+            }
+        }
+    }
+}
+
+struct PrayerAlertRow: View {
+    let prayer: String
+    @Binding var mode: String
+
+    var currentMode: PrayerAlertMode {
+        PrayerAlertMode(rawValue: mode) ?? .adhan
+    }
+
+    var body: some View {
+        Picker(prayer, selection: $mode) {
+            ForEach(PrayerAlertMode.allCases, id: \.rawValue) { alertMode in
+                Label(alertMode.displayName, systemImage: alertMode.icon)
+                    .tag(alertMode.rawValue)
             }
         }
     }
@@ -719,56 +777,233 @@ extension UIDevice {
 
 ## 6. Implementation Phases
 
-### Phase 1: Core Settings (Week 1-2)
-**Goal:** Add essential user-configurable settings
+Phases are organized to **frontload independent tasks** that can be done in parallel or without dependencies.
 
-- [ ] Create `AppSettings` class with @AppStorage properties
-- [ ] Implement `SettingsView` with calculation method picker
-- [ ] Add Asr school selector
-- [ ] Create per-prayer adhan toggles
-- [ ] Wire settings to `AlAdhanService` API calls
-- [ ] Add settings gear icon to main view
-- [ ] Test settings persistence across app launches
+---
 
-**Files to create/modify:**
-- `Models/AppSettings.swift` (new)
+### Phase 0: Audio Asset Acquisition (Do First - Parallel)
+**Goal:** Obtain the Fajr-specific adhan audio file
+
+The Fajr adhan is traditionally different from other adhans—it includes the additional phrase:
+> **"الصلاة خير من النوم"** (As-salatu khayrun min an-nawm)
+> "Prayer is better than sleep"
+
+This phrase is recited twice after "Hayya 'ala al-falah" and is **only** used in the Fajr adhan.
+
+**Action Items:**
+- [ ] **Option A:** Record or obtain a royalty-free Fajr adhan audio file
+  - Sources: Islamic audio libraries, mosque recordings, professional reciters
+  - Ensure the recording includes "As-salatu khayrun min an-nawm"
+- [ ] **Option B:** Edit existing adhan to splice in the Fajr phrase
+  - Less ideal but workable if recording isn't available
+- [ ] Save as `adhan_fajr.mp3` in the Xcode project bundle
+- [ ] Verify audio quality matches existing `adhan.mp3`
+
+**Why do this first:** This is a blocking dependency for the audio manager changes. Start sourcing immediately while other development proceeds.
+
+---
+
+### Phase 1: Independent Code Components (Parallel Work)
+**Goal:** Build all components that don't depend on each other
+
+These can all be developed simultaneously:
+
+#### 1A: Settings Model & Enums
+- [ ] Create `Models/AppSettings.swift`
+- [ ] Create `PrayerAlertMode` enum (adhan/notification/silent)
+- [ ] Create `CalculationMethod` enum
+- [ ] Create `AsrSchool` enum
+- [ ] Add @AppStorage properties for all settings
+
+**Files:** `Models/AppSettings.swift`, `Models/Enums/PrayerAlertMode.swift`
+
+#### 1B: Logging Infrastructure
+- [ ] Create `Utilities/AppLogger.swift`
+- [ ] Implement in-memory log buffer
+- [ ] Add category-specific loggers (api, audio, location, general)
+- [ ] Create log export function for feedback
+
+**Files:** `Utilities/AppLogger.swift`
+
+#### 1C: Build Environment Utility
+- [ ] Create `Utilities/BuildEnvironment.swift`
+- [ ] Implement TestFlight detection
+- [ ] Add `allowDebug` computed property
+
+**Files:** `Utilities/BuildEnvironment.swift`
+
+#### 1D: Bundle Extensions
+- [ ] Create `Extensions/Bundle+Version.swift`
+- [ ] Create `Extensions/UIDevice+ModelName.swift`
+
+**Files:** `Extensions/Bundle+Version.swift`, `Extensions/UIDevice+ModelName.swift`
+
+#### 1E: Mail Composer View
+- [ ] Create `Views/MailComposerView.swift`
+- [ ] Implement UIViewControllerRepresentable wrapper
+- [ ] Create fallback view for when Mail isn't configured
+
+**Files:** `Views/MailComposerView.swift`
+
+---
+
+### Phase 2: Audio Manager Updates (Requires Phase 0)
+**Goal:** Update audio playback to handle Fajr-specific adhan
+
+**Changes to `AdhanAudioManager.swift`:**
+
+```swift
+/// Play the appropriate adhan for a prayer
+/// - Parameters:
+///   - prayerName: Name of the prayer (used to select Fajr-specific audio)
+///   - completion: Called when playback finishes
+func playAdhan(for prayerName: String, completion: (() -> Void)? = nil) {
+    self.completionHandler = completion
+
+    // Select appropriate audio file
+    let audioFileName = (prayerName == "Fajr") ? "adhan_fajr" : "adhan"
+
+    guard let url = Bundle.main.url(forResource: audioFileName, withExtension: "mp3") else {
+        // Fallback to standard adhan if Fajr-specific not found
+        if prayerName == "Fajr",
+           let fallbackURL = Bundle.main.url(forResource: "adhan", withExtension: "mp3") {
+            AppLogger.shared.log("Fajr adhan not found, using standard adhan", category: "audio", level: .error)
+            playAudioFile(url: fallbackURL)
+            return
+        }
+        AppLogger.shared.log("Adhan audio file not found: \(audioFileName)", category: "audio", level: .fault)
+        completion?()
+        return
+    }
+
+    playAudioFile(url: url)
+}
+
+private func playAudioFile(url: URL) {
+    do {
+        try AVAudioSession.sharedInstance().setActive(true)
+        audioPlayer = try AVAudioPlayer(contentsOf: url)
+        audioPlayer?.delegate = self
+        audioPlayer?.prepareToPlay()
+
+        let success = audioPlayer?.play() ?? false
+        if success {
+            isPlaying = true
+            AppLogger.shared.log("Adhan playback started: \(url.lastPathComponent)", category: "audio")
+        } else {
+            AppLogger.shared.log("Adhan playback failed to start", category: "audio", level: .error)
+            completionHandler?()
+        }
+    } catch {
+        AppLogger.shared.log("Audio player error: \(error)", category: "audio", level: .error)
+        completionHandler?()
+    }
+}
+```
+
+**Action Items:**
+- [ ] Add `adhan_fajr.mp3` to Xcode project bundle
+- [ ] Modify `playAdhan()` to accept prayer name parameter
+- [ ] Implement Fajr-specific audio selection
+- [ ] Add fallback logic if Fajr audio missing
+- [ ] Add logging throughout
+
+**Files:** `Services/AdhanAudioManager.swift`
+
+---
+
+### Phase 3: Settings UI (Requires Phase 1A)
+**Goal:** Build settings views
+
+- [ ] Create `Views/SettingsView.swift` with Form layout
+- [ ] Create `PrayerAlertRow` component for per-prayer picker
+- [ ] Create `Views/LocationSearchView.swift` for manual location
+- [ ] Create `Views/FeedbackView.swift`
+- [ ] Add settings gear icon to `ContentView.swift`
+- [ ] Wire up settings sheet presentation
+
+**Files:**
 - `Views/SettingsView.swift` (new)
+- `Views/PrayerAlertRow.swift` (new)
 - `Views/LocationSearchView.swift` (new)
-- `Services/AlAdhanService.swift` (modify)
-- `ViewModels/PrayerTimesManager.swift` (modify)
-- `ContentView.swift` (add settings button)
+- `Views/FeedbackView.swift` (new)
+- `ContentView.swift` (modify)
 
-### Phase 2: Debug Mode Cleanup (Week 2)
+---
+
+### Phase 4: Integration (Requires Phases 1-3)
+**Goal:** Connect all components
+
+#### 4A: Wire Settings to API Service
+- [ ] Modify `AlAdhanService` to accept calculation method and school
+- [ ] Update API URL construction to use settings
+- [ ] Add settings observation to trigger refresh on change
+
+**Files:** `Services/AlAdhanService.swift`
+
+#### 4B: Wire Settings to Prayer Manager
+- [ ] Inject `AppSettings` into `PrayerTimesManager`
+- [ ] Check alert mode before playing adhan
+- [ ] Pass prayer name to audio manager for Fajr detection
+- [ ] Handle "notification" mode (visual only)
+- [ ] Handle "silent" mode (no alert)
+
+```swift
+private func handlePrayerTime(for prayer: Prayer) {
+    let alertMode = settings.alertMode(for: prayer.name)
+
+    switch alertMode {
+    case .adhan:
+        playAdhan(for: prayer)
+    case .notification:
+        showVisualNotification(for: prayer)
+        // No audio
+    case .silent:
+        // Do nothing, just advance to next prayer
+        break
+    }
+
+    advanceToNextPrayer()
+}
+
+private func playAdhan(for prayer: Prayer) {
+    isAdhanPlaying = true
+    audioManager.playAdhan(for: prayer.name) { [weak self] in
+        Task { @MainActor in
+            self?.isAdhanPlaying = false
+        }
+    }
+}
+```
+
+**Files:** `ViewModels/PrayerTimesManager.swift`
+
+#### 4C: Add Logging Throughout
+- [ ] Add logging to `AlAdhanService` (API calls, errors)
+- [ ] Add logging to `LocationService` (permission, updates)
+- [ ] Add logging to `AdhanAudioManager` (playback events)
+- [ ] Add logging to `PrayerTimesManager` (state changes)
+
+---
+
+### Phase 5: Debug Mode Cleanup (Requires Phase 1C)
 **Goal:** Hide debug features from production
 
-- [ ] Add `#if DEBUG` guards around debug panel
-- [ ] Implement `BuildEnvironment` for TestFlight detection
-- [ ] Create simplified `DiagnosticsView` for production support
+- [ ] Add `#if DEBUG` guards around debug panel in `ContentView.swift`
+- [ ] Create `DiagnosticsView.swift` for production support
 - [ ] Remove/guard all `print()` statements in release builds
 - [ ] Test that debug panel is inaccessible in release builds
+- [ ] Verify TestFlight builds have limited debug access
 
-**Files to modify:**
-- `ContentView.swift`
-- `ViewModels/PrayerTimesManager.swift`
-- `Utilities/BuildEnvironment.swift` (new)
+**Files:**
+- `ContentView.swift` (modify)
+- `Views/DiagnosticsView.swift` (new)
+- All files with `print()` statements
 
-### Phase 3: Logging & Feedback (Week 2-3)
-**Goal:** Enable users to report issues with context
+---
 
-- [ ] Implement `AppLogger` with in-memory buffer
-- [ ] Add logging throughout key code paths (API, audio, location)
-- [ ] Create `FeedbackView` with email composition
-- [ ] Implement `MailComposerView` with UIKit bridge
-- [ ] Add "Send Feedback" option in Settings
-- [ ] Test feedback flow on device
-
-**Files to create:**
-- `Utilities/AppLogger.swift` (new)
-- `Views/FeedbackView.swift` (new)
-- `Views/MailComposerView.swift` (new)
-
-### Phase 4: Polish & Assets (Week 3-4)
-**Goal:** Prepare App Store assets and polish
+### Phase 6: Polish & Assets
+**Goal:** Prepare App Store assets
 
 - [ ] Create app icon (1024x1024)
 - [ ] Design launch screen
@@ -777,10 +1012,15 @@ extension UIDevice {
 - [ ] Draft privacy policy
 - [ ] Create promotional text
 
-### Phase 5: Testing & Submission (Week 4-5)
+---
+
+### Phase 7: Testing & Submission
 **Goal:** Final testing and App Store submission
 
 - [ ] Full testing pass on multiple devices
+- [ ] Test all calculation methods produce valid times
+- [ ] Test all alert modes (adhan/notification/silent)
+- [ ] Verify Fajr plays correct adhan
 - [ ] TestFlight beta with external testers
 - [ ] Address beta feedback
 - [ ] Submit for App Store review
@@ -788,20 +1028,52 @@ extension UIDevice {
 
 ---
 
+## Implementation Dependency Graph
+
+```
+Phase 0 (Audio Asset) ─────────────────────────────┐
+                                                   │
+Phase 1A (Settings Model) ──┬── Phase 3 (Settings UI)
+                            │           │
+Phase 1B (Logging) ─────────┤           │
+                            │           │
+Phase 1C (Build Env) ───────┤           ├── Phase 4 (Integration) ── Phase 5 ── Phase 6 ── Phase 7
+                            │           │
+Phase 1D (Extensions) ──────┤           │
+                            │           │
+Phase 1E (Mail Composer) ───┴───────────┘
+                                        │
+Phase 2 (Audio Manager) ────────────────┘
+         (needs Phase 0)
+```
+
+**Parallel Tracks:**
+- Track A: Phases 1A-1E (all independent, do in parallel)
+- Track B: Phase 0 → Phase 2 (audio file → audio manager)
+- Then: Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7
+
+---
+
 ## Summary
 
 ### Settings Added
-| Setting | Purpose | Default |
+| Setting | Options | Default |
 |---------|---------|---------|
-| Calculation Method | Different regions use different astronomical calculations | ISNA |
-| Asr School | Hanafi vs Standard timing | Hanafi |
-| Location Mode | Auto GPS vs manual city | Auto |
-| Per-Prayer Adhan | Enable/disable adhan per prayer | All on |
-| Adhan Sound | Sound selection | Standard |
+| Calculation Method | ISNA, MWL, Umm Al-Qura, Egyptian, Karachi, Tehran | ISNA |
+| Asr School | Standard (Shafi'i), Hanafi | Hanafi |
+| Location Mode | Automatic GPS, Manual city | Automatic |
+| Per-Prayer Alert | Adhan, Notification, Silent | All Adhan |
+
+### Audio Files
+| File | Purpose |
+|------|---------|
+| `adhan.mp3` | Standard adhan (Dhuhr, Asr, Maghrib, Isha) |
+| `adhan_fajr.mp3` | Fajr adhan with "Prayer is better than sleep" |
 
 ### UX Changes
 - Subtle gear icon in bottom-left for settings access
 - Bottom sheet settings panel matching app aesthetic
+- Per-prayer alert mode picker (Adhan/Notification/Silent)
 - Feedback option in settings with log attachment
 
 ### Debug Strategy
