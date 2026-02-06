@@ -24,6 +24,10 @@ class PrayerTimesManager: ObservableObject {
     // Adhan playing state
     @Published var isAdhanPlaying = false
 
+    // Visual notification state (for notification-only mode)
+    @Published var showPrayerNotification = false
+    @Published var notificationPrayerName = ""
+
     // Derived indicator states based on focusedPrayer
     var isApproaching: Bool {
         guard let focused = focusedPrayer else { return false }
@@ -34,8 +38,8 @@ class PrayerTimesManager: ObservableObject {
 
     var isActive: Bool {
         guard focusedPrayer != nil else { return false }
-        // Active when adhan is playing (prayer time has been reached)
-        return isAdhanPlaying
+        // Active when adhan is playing or notification is showing
+        return isAdhanPlaying || showPrayerNotification
     }
 
     // For backward compatibility with NextPrayerView
@@ -53,6 +57,7 @@ class PrayerTimesManager: ObservableObject {
     private let audioManager = AdhanAudioManager.shared
     private let locationService = LocationService.shared
     private let apiService = AlAdhanService.shared
+    private var settings: AppSettings { AppSettings.shared }
 
     // MARK: - Initialization
 
@@ -71,6 +76,8 @@ class PrayerTimesManager: ObservableObject {
 
         // Schedule midnight refresh
         scheduleMidnightRefresh()
+
+        AppLogger.shared.info("PrayerTimesManager initialized", category: "general")
     }
 
     // MARK: - Data Loading
@@ -79,6 +86,8 @@ class PrayerTimesManager: ObservableObject {
     func loadPrayerTimes() async {
         isLoading = true
         errorMessage = nil
+
+        AppLogger.shared.info("Loading prayer times...", category: "general")
 
         // Get location first
         await locationService.requestLocation()
@@ -97,11 +106,11 @@ class PrayerTimesManager: ObservableObject {
             updateFocusedPrayer()
             updateNightMode()
 
-            print("PrayerTimesManager: Loaded \(prayers.count) prayers")
+            AppLogger.shared.info("Loaded \(prayers.count) prayers for \(locationName)", category: "general")
 
         } catch {
             errorMessage = error.localizedDescription
-            print("PrayerTimesManager: Error loading prayers - \(error)")
+            AppLogger.shared.error("Error loading prayers: \(error)", category: "general")
         }
 
         isLoading = false
@@ -122,11 +131,11 @@ class PrayerTimesManager: ObservableObject {
             )
 
             // Store for tomorrow - will be used after midnight
-            print("PrayerTimesManager: Pre-fetched tomorrow's prayers")
+            AppLogger.shared.info("Pre-fetched tomorrow's prayers", category: "general")
 
             // After midnight refresh, these will become today's prayers
         } catch {
-            print("PrayerTimesManager: Failed to fetch tomorrow - \(error)")
+            AppLogger.shared.error("Failed to fetch tomorrow: \(error)", category: "general")
         }
     }
 
@@ -152,7 +161,7 @@ class PrayerTimesManager: ObservableObject {
 
     // MARK: - Prayer Time Detection
 
-    /// Check if it's time to play adhan
+    /// Check if it's time to trigger prayer alert
     private func checkPrayerTime() {
         guard let focused = focusedPrayer else { return }
 
@@ -160,24 +169,63 @@ class PrayerTimesManager: ObservableObject {
         if currentTime >= focused.time {
             let prayerKey = makePrayerKey(focused)
 
-            // Only play if we haven't played this prayer today
+            // Only trigger if we haven't triggered this prayer today
             if !playedPrayers.contains(prayerKey) {
                 playedPrayers.insert(prayerKey)
-                playAdhan(for: focused)
-                // Note: advanceToNextPrayer is called when adhan FINISHES, not here
+                handlePrayerTime(for: focused)
             }
+        }
+    }
+
+    /// Handle prayer time based on alert mode settings
+    private func handlePrayerTime(for prayer: Prayer) {
+        let alertMode = settings.alertMode(for: prayer.name)
+
+        AppLogger.shared.info("Prayer time reached: \(prayer.name), alert mode: \(alertMode.displayName)", category: "general")
+
+        switch alertMode {
+        case .adhan:
+            playAdhan(for: prayer)
+
+        case .notification:
+            showVisualNotification(for: prayer)
+
+        case .silent:
+            // No alert, just advance to next prayer
+            AppLogger.shared.info("Silent mode for \(prayer.name), skipping alert", category: "general")
+            advanceToNextPrayer()
         }
     }
 
     /// Play adhan for a prayer
     private func playAdhan(for prayer: Prayer) {
-        print("PrayerTimesManager: Playing adhan for \(prayer.name)")
+        AppLogger.shared.info("Playing adhan for \(prayer.name)", category: "audio")
         isAdhanPlaying = true
-        audioManager.playAdhan { [weak self] in
+
+        // Pass prayer name so audio manager can select Fajr-specific audio
+        audioManager.playAdhan(for: prayer.name) { [weak self] in
             Task { @MainActor in
                 self?.isAdhanPlaying = false
                 // Advance to next prayer AFTER adhan finishes
                 self?.advanceToNextPrayer()
+            }
+        }
+    }
+
+    /// Show visual notification without audio
+    private func showVisualNotification(for prayer: Prayer) {
+        AppLogger.shared.info("Showing visual notification for \(prayer.name)", category: "general")
+
+        showPrayerNotification = true
+        notificationPrayerName = prayer.name
+
+        // Auto-dismiss after 30 seconds and advance
+        Task {
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            await MainActor.run {
+                self.showPrayerNotification = false
+                self.notificationPrayerName = ""
+                self.advanceToNextPrayer()
             }
         }
     }
@@ -189,9 +237,11 @@ class PrayerTimesManager: ObservableObject {
         if currentPrayerIndex < prayers.count {
             focusedPrayer = prayers[currentPrayerIndex]
             updateNightMode()
+            AppLogger.shared.info("Advanced to next prayer: \(focusedPrayer?.name ?? "none")", category: "general")
         } else {
             // All prayers done for today, next is Fajr tomorrow
             focusedPrayer = nil
+            AppLogger.shared.info("All prayers completed for today", category: "general")
 
             // Fetch tomorrow's times
             Task {
@@ -258,7 +308,7 @@ class PrayerTimesManager: ObservableObject {
 
     /// Perform midnight refresh
     private func performMidnightRefresh() {
-        print("PrayerTimesManager: Midnight refresh")
+        AppLogger.shared.info("Performing midnight refresh", category: "general")
 
         // Reset state for new day
         playedPrayers.removeAll()
@@ -317,13 +367,22 @@ class PrayerTimesManager: ObservableObject {
         isAdhanPlaying = false
     }
 
+    /// Dismiss visual notification
+    func dismissNotification() {
+        showPrayerNotification = false
+        notificationPrayerName = ""
+    }
+
     // MARK: - Debug Controls
 
     /// Trigger adhan immediately (for testing)
     func triggerAdhanNow() {
-        print("PrayerTimesManager: [DEBUG] Triggering adhan manually")
+        AppLogger.shared.debug("[DEBUG] Triggering adhan manually", category: "general")
         isAdhanPlaying = true
-        audioManager.playAdhan { [weak self] in
+
+        // Use focused prayer name if available for correct audio selection
+        let prayerName = focusedPrayer?.name
+        audioManager.playAdhan(for: prayerName) { [weak self] in
             Task { @MainActor in
                 self?.isAdhanPlaying = false
             }
@@ -333,21 +392,21 @@ class PrayerTimesManager: ObservableObject {
     /// Simulate the next prayer time being reached (for testing auto-play)
     func simulateNextPrayerTime() {
         guard let focused = focusedPrayer else {
-            print("PrayerTimesManager: [DEBUG] No focused prayer to simulate")
+            AppLogger.shared.debug("[DEBUG] No focused prayer to simulate", category: "general")
             return
         }
 
-        print("PrayerTimesManager: [DEBUG] Simulating \(focused.name) prayer time reached")
+        AppLogger.shared.debug("[DEBUG] Simulating \(focused.name) prayer time reached", category: "general")
 
-        // Mark as played and trigger adhan (advance happens when adhan finishes)
+        // Mark as played and trigger based on alert mode
         let prayerKey = makePrayerKey(focused)
         if !playedPrayers.contains(prayerKey) {
             playedPrayers.insert(prayerKey)
-            playAdhan(for: focused)
+            handlePrayerTime(for: focused)
         } else {
-            print("PrayerTimesManager: [DEBUG] Prayer already played, just triggering adhan")
+            AppLogger.shared.debug("[DEBUG] Prayer already played, just triggering adhan", category: "general")
             isAdhanPlaying = true
-            audioManager.playAdhan { [weak self] in
+            audioManager.playAdhan(for: focused.name) { [weak self] in
                 Task { @MainActor in
                     self?.isAdhanPlaying = false
                 }

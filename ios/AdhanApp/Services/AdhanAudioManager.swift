@@ -32,9 +32,9 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
             // Activate the session
             try session.setActive(true)
 
-            print("AdhanAudioManager: Audio session configured successfully")
+            AppLogger.shared.info("Audio session configured successfully", category: "audio")
         } catch {
-            print("AdhanAudioManager: Failed to configure audio session - \(error)")
+            AppLogger.shared.error("Failed to configure audio session: \(error)", category: "audio")
         }
     }
 
@@ -65,12 +65,12 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         switch type {
         case .began:
             // Interruption began (e.g., phone call started)
-            print("AdhanAudioManager: Audio interrupted")
+            AppLogger.shared.info("Audio interrupted", category: "audio")
             // Audio will pause automatically
 
         case .ended:
             // Interruption ended
-            print("AdhanAudioManager: Audio interruption ended")
+            AppLogger.shared.info("Audio interruption ended", category: "audio")
             // Check if we should resume
             if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
@@ -95,10 +95,10 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         switch reason {
         case .oldDeviceUnavailable:
             // Headphones unplugged - pause audio (standard iOS behavior)
-            print("AdhanAudioManager: Audio route changed - old device unavailable")
+            AppLogger.shared.info("Audio route changed - old device unavailable", category: "audio")
         case .newDeviceAvailable:
             // New device connected (headphones, bluetooth)
-            print("AdhanAudioManager: Audio route changed - new device available")
+            AppLogger.shared.info("Audio route changed - new device available", category: "audio")
         default:
             break
         }
@@ -106,18 +106,39 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     // MARK: - Playback Control
 
-    /// Play the adhan audio file
+    /// Play the adhan audio file (legacy method for backward compatibility)
     func playAdhan(completion: (() -> Void)? = nil) {
+        playAdhan(for: nil, completion: completion)
+    }
+
+    /// Play the appropriate adhan for a prayer
+    /// - Parameters:
+    ///   - prayerName: Name of the prayer (used to select Fajr-specific audio). Pass nil for default.
+    ///   - completion: Called when playback finishes
+    func playAdhan(for prayerName: String?, completion: (() -> Void)? = nil) {
         // Store completion handler
         self.completionHandler = completion
 
-        // Find the audio file in the bundle
-        guard let url = Bundle.main.url(forResource: "adhan", withExtension: "mp3") else {
-            print("AdhanAudioManager: ERROR - adhan.mp3 not found in bundle")
-            completion?()
-            return
-        }
+        // Select appropriate audio file
+        // Fajr uses a special adhan with "As-salatu khayrun min an-nawm"
+        let isFajr = prayerName == "Fajr"
+        let audioFileName = isFajr ? "adhan_fajr" : "adhan"
 
+        // Try to find the audio file
+        if let url = Bundle.main.url(forResource: audioFileName, withExtension: "mp3") {
+            playAudioFile(url: url, prayerName: prayerName)
+        } else if isFajr, let fallbackURL = Bundle.main.url(forResource: "adhan", withExtension: "mp3") {
+            // Fajr-specific audio not found, fallback to standard adhan
+            AppLogger.shared.info("Fajr adhan not found, using standard adhan", category: "audio")
+            playAudioFile(url: fallbackURL, prayerName: prayerName)
+        } else {
+            AppLogger.shared.fault("Adhan audio file not found: \(audioFileName).mp3", category: "audio")
+            completion?()
+        }
+    }
+
+    /// Play an audio file from URL
+    private func playAudioFile(url: URL, prayerName: String?) {
         do {
             // Ensure audio session is active
             try AVAudioSession.sharedInstance().setActive(true)
@@ -132,14 +153,15 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
             if success {
                 isPlaying = true
-                print("AdhanAudioManager: Adhan playback started")
+                let prayerInfo = prayerName.map { " for \($0)" } ?? ""
+                AppLogger.shared.info("Adhan playback started\(prayerInfo): \(url.lastPathComponent)", category: "audio")
             } else {
-                print("AdhanAudioManager: ERROR - playback failed to start")
-                completion?()
+                AppLogger.shared.error("Adhan playback failed to start", category: "audio")
+                completionHandler?()
             }
         } catch {
-            print("AdhanAudioManager: ERROR - \(error)")
-            completion?()
+            AppLogger.shared.error("Audio player error: \(error)", category: "audio")
+            completionHandler?()
         }
     }
 
@@ -147,21 +169,21 @@ class AdhanAudioManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func stopAdhan() {
         audioPlayer?.stop()
         isPlaying = false
-        print("AdhanAudioManager: Adhan playback stopped")
+        AppLogger.shared.info("Adhan playback stopped", category: "audio")
     }
 
     // MARK: - AVAudioPlayerDelegate
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         isPlaying = false
-        print("AdhanAudioManager: Adhan playback finished (success: \(flag))")
+        AppLogger.shared.info("Adhan playback finished (success: \(flag))", category: "audio")
         completionHandler?()
         completionHandler = nil
     }
 
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         isPlaying = false
-        print("AdhanAudioManager: Decode error - \(error?.localizedDescription ?? "unknown")")
+        AppLogger.shared.error("Audio decode error: \(error?.localizedDescription ?? "unknown")", category: "audio")
         completionHandler?()
         completionHandler = nil
     }

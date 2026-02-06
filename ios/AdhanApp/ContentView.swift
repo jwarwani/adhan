@@ -2,9 +2,15 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var prayerManager = PrayerTimesManager()
+    @StateObject private var settings = AppSettings.shared
     @State private var showKioskInstructions = false
-    @State private var showDebugPanel = false
+    @State private var showSettings = false
     @AppStorage("hasSeenKioskInstructions") private var hasSeenInstructions = false
+
+    // Debug panel only available in debug/TestFlight builds
+    #if DEBUG
+    @State private var showDebugPanel = false
+    #endif
 
     // Gold accent color
     private let goldColor = Color(red: 0.85, green: 0.65, blue: 0.13)
@@ -35,14 +41,17 @@ struct ContentView: View {
 
                     Spacer()
 
-                    // Large clock display (triple-tap for debug mode)
+                    // Large clock display
                     MainClockView(
                         currentTime: prayerManager.currentTime,
                         screenWidth: geometry.size.width
                     )
+                    #if DEBUG
+                    // Triple-tap for debug mode (only in debug builds)
                     .onTapGesture(count: 3) {
                         showDebugPanel.toggle()
                     }
+                    #endif
 
                     // Next prayer indicator
                     NextPrayerView(
@@ -64,6 +73,25 @@ struct ContentView: View {
                     )
                     .padding(.horizontal, 40 * (geometry.size.width / 1180))
                     .padding(.bottom, 40 * (geometry.size.width / 1180))
+                }
+
+                // Settings button (bottom left)
+                VStack {
+                    Spacer()
+                    HStack {
+                        let scale = geometry.size.width / 1180
+                        Button(action: { showSettings = true }) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 18 * scale))
+                                .foregroundColor(.white.opacity(0.4))
+                                .padding(12 * scale)
+                                .background(Color.black.opacity(0.3))
+                                .clipShape(Circle())
+                        }
+                        .padding(.leading, 20 * scale)
+                        .padding(.bottom, 20 * scale)
+                        Spacer()
+                    }
                 }
 
                 // Location indicator (bottom right)
@@ -105,13 +133,25 @@ struct ContentView: View {
                 // Night mode overlay
                 NightOverlayView(isNightMode: prayerManager.isNightMode)
 
-                // Debug panel (triple-tap clock to show)
+                // Visual notification overlay (for notification-only mode)
+                if prayerManager.showPrayerNotification {
+                    PrayerNotificationOverlay(
+                        prayerName: prayerManager.notificationPrayerName,
+                        onDismiss: {
+                            prayerManager.dismissNotification()
+                        }
+                    )
+                }
+
+                // Debug panel (only in debug/TestFlight builds)
+                #if DEBUG
                 if showDebugPanel {
                     DebugPanelView(
                         prayerManager: prayerManager,
                         isPresented: $showDebugPanel
                     )
                 }
+                #endif
 
                 // Kiosk instructions overlay
                 if showKioskInstructions {
@@ -144,6 +184,21 @@ struct ContentView: View {
             }
         }
         .ignoresSafeArea()
+        .sheet(isPresented: $showSettings) {
+            SettingsView(settings: settings, isPresented: $showSettings)
+        }
+        .onChange(of: settings.calculationMethod) { _ in
+            // Refresh prayer times when calculation method changes
+            Task { await prayerManager.refresh() }
+        }
+        .onChange(of: settings.asrSchool) { _ in
+            // Refresh prayer times when Asr school changes
+            Task { await prayerManager.refresh() }
+        }
+        .onChange(of: settings.useAutoLocation) { _ in
+            // Refresh prayer times when location mode changes
+            Task { await prayerManager.refresh() }
+        }
         .onAppear {
             // Keep screen always on for kiosk mode
             UIApplication.shared.isIdleTimerDisabled = true
@@ -152,12 +207,59 @@ struct ContentView: View {
             if !hasSeenInstructions {
                 showKioskInstructions = true
             }
+
+            AppLogger.shared.info("App appeared, screen lock disabled", category: "general")
         }
+    }
+}
+
+// MARK: - Prayer Notification Overlay
+
+/// Visual notification overlay shown when alert mode is "notification"
+struct PrayerNotificationOverlay: View {
+    let prayerName: String
+    let onDismiss: () -> Void
+
+    // Gold accent color
+    private let goldColor = Color(red: 0.85, green: 0.65, blue: 0.13)
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Bell icon
+            Image(systemName: "bell.fill")
+                .font(.system(size: 60))
+                .foregroundColor(goldColor)
+
+            // Prayer name
+            Text("\(prayerName) Time")
+                .font(.system(size: 36, weight: .bold, design: .serif))
+                .foregroundColor(.white)
+
+            // Dismiss button
+            Button(action: onDismiss) {
+                Text("Dismiss")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(goldColor)
+                    .cornerRadius(25)
+            }
+            .padding(.top, 16)
+        }
+        .padding(48)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(Color.black.opacity(0.9))
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.5))
     }
 }
 
 // MARK: - Debug Panel
 
+#if DEBUG
 struct DebugPanelView: View {
     @ObservedObject var prayerManager: PrayerTimesManager
     @Binding var isPresented: Bool
@@ -165,7 +267,7 @@ struct DebugPanelView: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text("🛠 Debug Panel")
+                Text("Debug Panel")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.white)
                 Spacer()
@@ -178,10 +280,21 @@ struct DebugPanelView: View {
 
             Divider().background(Color.white.opacity(0.3))
 
+            // Build info
+            Text("Build: \(BuildEnvironment.configurationName)")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.5))
+
             // Focused prayer info
             if let focused = prayerManager.focusedPrayer {
                 Text("Focused: \(focused.name) @ \(focused.formattedTime)")
                     .foregroundColor(.white.opacity(0.8))
+
+                let alertMode = AppSettings.shared.alertMode(for: focused.name)
+                Text("Alert Mode: \(alertMode.displayName)")
+                    .foregroundColor(.white.opacity(0.6))
+                    .font(.system(size: 14))
+
                 Text("Approaching: \(prayerManager.isApproaching ? "Yes" : "No"), Active: \(prayerManager.isActive ? "Yes" : "No")")
                     .foregroundColor(.white.opacity(0.6))
                     .font(.system(size: 14))
@@ -251,6 +364,7 @@ struct DebugPanelView: View {
         .padding(40)
     }
 }
+#endif
 
 #Preview {
     ContentView()
