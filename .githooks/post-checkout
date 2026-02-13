@@ -1,0 +1,17 @@
+#!/bin/bash
+# Regenerate Xcode project after checkout
+# This ensures the project file stays in sync with project.yml
+
+# Only run if we're on macOS and xcodegen is installed
+if [[ "$(uname)" == "Darwin" ]] && command -v xcodegen &> /dev/null; then
+    # Check if project.yml exists
+    if [[ -f "ios/project.yml" ]]; then
+        echo "Regenerating Xcode project..."
+        cd ios && xcodegen generate --quiet
+        if [[ $? -eq 0 ]]; then
+            echo "Xcode project regenerated successfully."
+        else
+            echo "Warning: Failed to regenerate Xcode project."
+        fi
+    fi
+fi

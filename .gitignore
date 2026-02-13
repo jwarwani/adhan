@@ -5,6 +5,10 @@
 xcuserdata/
 *.xcuserstate
 
+# XcodeGen
+# Note: We keep AdhanApp.xcodeproj in git for convenience, but it's generated from project.yml
+# If you modify the project structure, edit ios/project.yml and run: cd ios && xcodegen generate
+
 # Xcode build artifacts
 DerivedData/
 build/

@@ -1,0 +1,19 @@
+#!/bin/bash
+# Regenerate Xcode project after merge/pull
+# This ensures the project file stays in sync with project.yml
+
+# Only run if we're on macOS and xcodegen is installed
+if [[ "$(uname)" == "Darwin" ]] && command -v xcodegen &> /dev/null; then
+    # Check if project.yml was changed in the merge
+    CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null)
+
+    if echo "$CHANGED_FILES" | grep -q "ios/project.yml\|ios/AdhanApp/"; then
+        echo "Detected changes to iOS project structure. Regenerating Xcode project..."
+        cd ios && xcodegen generate --quiet
+        if [[ $? -eq 0 ]]; then
+            echo "Xcode project regenerated successfully."
+        else
+            echo "Warning: Failed to regenerate Xcode project."
+        fi
+    fi
+fi
