@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		27CEAB59C7AAC4676C183093 /* MailComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B19B04CC37D31BA909997D1 /* MailComposerView.swift */; };
+		295FCCCD29C53C71CCB4568B /* adhan_fajr.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 15DD13F44B495655F5AC5EF4 /* adhan_fajr.mp3 */; };
 		502DB4865BC28D3F2BE6949B /* AdhanAudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DED34752362EA08D4741CBB /* AdhanAudioManager.swift */; };
 		5068E44CFE8E1D337C4C85EA /* AsrSchool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 364A73EC892FC0C5AACA05B6 /* AsrSchool.swift */; };
 		510FD3DC2C1F6A5F9FA55BDC /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = DC4F5BFB4B64B20EB81BA4B6 /* README.md */; };
@@ -27,6 +28,7 @@
 		A551AB1F1A1DB9CF583F6A53 /* CalculationMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = 092B0070656C442FEF42AE0F /* CalculationMethod.swift */; };
 		AA4F59C7996CDE3CF861DFE9 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D76D1DE6E448700A732BD9F4 /* FeedbackView.swift */; };
 		AF8C1732A54D2F91939F54DD /* AlAdhanResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6A7E6613F9CA02FB4079328 /* AlAdhanResponse.swift */; };
+		BD6ABA53476585F34B3B1A42 /* adhan.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 479FFA72D0D383A6D3FF7937 /* adhan.mp3 */; };
 		C40D1A5B8CF687EED7ED9E3C /* PrayerTimesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFC83261C71F6A2F1AAB9DA6 /* PrayerTimesManager.swift */; };
 		D5D10DAF04AB0EDC1609020A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8656480062FC6885772CD860 /* SettingsView.swift */; };
 		D7D30BEA1DC283F80583DC35 /* AdhanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D462999ED2775C82374A25E /* AdhanApp.swift */; };
@@ -42,9 +44,11 @@
 		0835B047813D9C971AE54572 /* UIDevice+ModelName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIDevice+ModelName.swift"; sourceTree = "<group>"; };
 		092B0070656C442FEF42AE0F /* CalculationMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculationMethod.swift; sourceTree = "<group>"; };
 		135FCCE08EFDB3F4C24910C1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		15DD13F44B495655F5AC5EF4 /* adhan_fajr.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = adhan_fajr.mp3; sourceTree = "<group>"; };
 		28EE9217D3DE4BBE8EE855CC /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
 		33685655529CFF3993650378 /* BuildEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildEnvironment.swift; sourceTree = "<group>"; };
 		364A73EC892FC0C5AACA05B6 /* AsrSchool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsrSchool.swift; sourceTree = "<group>"; };
+		479FFA72D0D383A6D3FF7937 /* adhan.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = adhan.mp3; sourceTree = "<group>"; };
 		5D462999ED2775C82374A25E /* AdhanApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdhanApp.swift; sourceTree = "<group>"; };
 		5EADDB70F68CE1E016316BB7 /* PrayerAlertMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerAlertMode.swift; sourceTree = "<group>"; };
 		67865DF5B8E9C978818743AA /* AdhanApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AdhanApp.entitlements; sourceTree = "<group>"; };
@@ -117,6 +121,8 @@
 		413975E724ECBA0B0493523A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				15DD13F44B495655F5AC5EF4 /* adhan_fajr.mp3 */,
+				479FFA72D0D383A6D3FF7937 /* adhan.mp3 */,
 				DC4F5BFB4B64B20EB81BA4B6 /* README.md */,
 			);
 			path = Resources;
@@ -240,6 +246,8 @@
 			files = (
 				EFF08FCAA2A95167632AC999 /* Assets.xcassets in Resources */,
 				510FD3DC2C1F6A5F9FA55BDC /* README.md in Resources */,
+				BD6ABA53476585F34B3B1A42 /* adhan.mp3 in Resources */,
+				295FCCCD29C53C71CCB4568B /* adhan_fajr.mp3 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
