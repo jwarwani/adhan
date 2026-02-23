@@ -5,8 +5,8 @@ struct FeedbackView: View {
 
     // MARK: - Configuration
 
-    /// Support email address - update this before App Store release
-    private let supportEmail = "support@example.com"
+    /// Support email address
+    private let supportEmail = "j.warwani@gmail.com"
 
     // MARK: - State
 
