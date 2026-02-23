@@ -21,6 +21,9 @@ class LocationService: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private var locationContinuation: CheckedContinuation<CLLocation, Error>?
 
+    // Settings reference
+    private var settings: AppSettings { AppSettings.shared }
+
     private override init() {
         super.init()
         locationManager.delegate = self
@@ -32,9 +35,21 @@ class LocationService: NSObject, ObservableObject {
 
     /// Request location permission and get current location
     /// Falls back to Queens, NY if permission denied or error occurs
+    /// Respects manual location setting from AppSettings
     func requestLocation() async {
         await MainActor.run { isLoading = true }
         defer { Task { await MainActor.run { self.isLoading = false } } }
+
+        // Check if user has set a manual location
+        if !settings.useAutoLocation, let manual = settings.manualLocation {
+            await MainActor.run {
+                self.latitude = manual.latitude
+                self.longitude = manual.longitude
+                self.cityName = settings.manualCityName.isEmpty ? "Manual Location" : settings.manualCityName
+            }
+            AppLogger.shared.info("Using manual location: \(cityName) (\(String(format: "%.4f", manual.latitude)), \(String(format: "%.4f", manual.longitude)))", category: "location")
+            return
+        }
 
         // Check current authorization status
         let status = locationManager.authorizationStatus
@@ -42,6 +57,7 @@ class LocationService: NSObject, ObservableObject {
         switch status {
         case .notDetermined:
             // Request permission
+            AppLogger.shared.info("Requesting location permission", category: "location")
             locationManager.requestWhenInUseAuthorization()
             // Wait a moment for the user to respond
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -58,7 +74,7 @@ class LocationService: NSObject, ObservableObject {
             await getLocationAndGeocode()
 
         case .denied, .restricted:
-            print("LocationService: Permission denied, using fallback")
+            AppLogger.shared.info("Location permission denied, using fallback", category: "location")
             await MainActor.run { isAuthorized = false }
             await useFallbackOrCached()
 
@@ -74,7 +90,7 @@ class LocationService: NSObject, ObservableObject {
                 self.latitude = location.coordinate.latitude
                 self.longitude = location.coordinate.longitude
             }
-            print("LocationService: Got location (\(latitude), \(longitude))")
+            AppLogger.shared.info("Got GPS location: (\(String(format: "%.4f", latitude)), \(String(format: "%.4f", longitude)))", category: "location")
 
             // Reverse geocode for city name
             await reverseGeocode(latitude: latitude, longitude: longitude)
@@ -82,7 +98,7 @@ class LocationService: NSObject, ObservableObject {
             // Cache the location
             cacheLocation()
         } catch {
-            print("LocationService: Error getting location - \(error.localizedDescription)")
+            AppLogger.shared.error("Error getting location: \(error.localizedDescription)", category: "location")
             await useFallbackOrCached()
         }
     }
@@ -118,10 +134,10 @@ class LocationService: NSObject, ObservableObject {
                 await MainActor.run {
                     self.cityName = country.isEmpty ? city : "\(city), \(country)"
                 }
-                print("LocationService: Reverse geocoded to \(cityName)")
+                AppLogger.shared.info("Reverse geocoded to: \(cityName)", category: "location")
             }
         } catch {
-            print("LocationService: Reverse geocode failed - \(error.localizedDescription)")
+            AppLogger.shared.error("Reverse geocode failed: \(error.localizedDescription)", category: "location")
             // Keep previous city name or use coordinates
             await MainActor.run {
                 self.cityName = String(format: "%.2f, %.2f", latitude, longitude)
@@ -137,7 +153,7 @@ class LocationService: NSObject, ObservableObject {
                 self.latitude = cached.latitude
                 self.longitude = cached.longitude
             }
-            print("LocationService: Using cached location")
+            AppLogger.shared.info("Using cached location", category: "location")
         } else {
             // Use fallback
             await MainActor.run {
@@ -145,7 +161,7 @@ class LocationService: NSObject, ObservableObject {
                 self.longitude = Self.fallbackLongitude
                 self.cityName = Self.fallbackCity
             }
-            print("LocationService: Using fallback location (Queens, NY)")
+            AppLogger.shared.info("Using fallback location (Queens, NY)", category: "location")
         }
     }
 
@@ -174,7 +190,7 @@ extension LocationService: CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("LocationService: Location manager error - \(error.localizedDescription)")
+        AppLogger.shared.error("Location manager error: \(error.localizedDescription)", category: "location")
         locationContinuation?.resume(throwing: error)
         locationContinuation = nil
     }
@@ -184,7 +200,7 @@ extension LocationService: CLLocationManagerDelegate {
         DispatchQueue.main.async {
             self.isAuthorized = (status == .authorizedWhenInUse || status == .authorizedAlways)
         }
-        print("LocationService: Authorization changed to \(status.rawValue)")
+        AppLogger.shared.info("Location authorization changed to: \(status.rawValue)", category: "location")
     }
 }
 

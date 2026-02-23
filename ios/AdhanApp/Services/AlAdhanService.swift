@@ -12,8 +12,9 @@ class AlAdhanService {
 
     // MARK: - Configuration
     private let baseURL = "https://api.aladhan.com/v1/timings"
-    private let method = 2      // ISNA calculation method
-    private let school = 1      // Hanafi school for Asr
+
+    // Settings reference - uses AppSettings for calculation method and school
+    private var settings: AppSettings { AppSettings.shared }
 
     private init() {}
 
@@ -36,11 +37,11 @@ class AlAdhanService {
             cache(result.prayers, location: (latitude, longitude))
             return result
         } catch {
-            print("AlAdhanService: Network error - \(error.localizedDescription)")
+            AppLogger.shared.error("Network error: \(error.localizedDescription)", category: "api")
 
             // Fall back to cache if network fails
             if let cached = getCachedPrayers(), isCacheValidForToday() {
-                print("AlAdhanService: Using cached prayer times")
+                AppLogger.shared.info("Using cached prayer times", category: "api")
                 return (cached, formatGregorianDate(date), "Cached")
             }
 
@@ -59,6 +60,10 @@ class AlAdhanService {
         let timestamp = Int(date.timeIntervalSince1970)
         let timezone = TimeZone.current.identifier
 
+        // Get calculation settings from AppSettings
+        let method = settings.calculationMethod
+        let school = settings.asrSchool
+
         var components = URLComponents(string: "\(baseURL)/\(timestamp)")!
         components.queryItems = [
             URLQueryItem(name: "latitude", value: String(latitude)),
@@ -72,7 +77,7 @@ class AlAdhanService {
             throw AlAdhanError.invalidURL
         }
 
-        print("AlAdhanService: Fetching from \(url)")
+        AppLogger.shared.info("Fetching prayers: method=\(settings.calculationMethodEnum.displayName), school=\(settings.asrSchoolEnum.displayName), lat=\(String(format: "%.4f", latitude)), lon=\(String(format: "%.4f", longitude))", category: "api")
 
         // Make request with retry logic
         let data = try await fetchWithRetry(url: url, maxRetries: 3)
@@ -92,7 +97,7 @@ class AlAdhanService {
         let gregorianDate = formatGregorianDateFromAPI(response.data.date.gregorian)
         let hijriDate = formatHijriDateFromAPI(response.data.date.hijri)
 
-        print("AlAdhanService: Successfully fetched \(prayers.count) prayers")
+        AppLogger.shared.info("Successfully fetched \(prayers.count) prayers", category: "api")
         return (prayers, gregorianDate, hijriDate)
     }
 
@@ -111,7 +116,7 @@ class AlAdhanService {
                 return data
             } catch {
                 lastError = error
-                print("AlAdhanService: Attempt \(attempt + 1) failed - \(error.localizedDescription)")
+                AppLogger.shared.error("API attempt \(attempt + 1) failed: \(error.localizedDescription)", category: "api")
 
                 if attempt < maxRetries - 1 {
                     // Exponential backoff: 1s, 2s, 4s
@@ -185,7 +190,7 @@ class AlAdhanService {
             UserDefaults.standard.set(data, forKey: cacheKey)
             UserDefaults.standard.set(Date(), forKey: cacheDateKey)
             UserDefaults.standard.set([location.lat, location.lon], forKey: cacheLocationKey)
-            print("AlAdhanService: Cached prayer times")
+            AppLogger.shared.debug("Cached prayer times", category: "api")
         }
     }
 
