@@ -215,6 +215,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					B578D3D7DFE16A4E33C781DE = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -229,6 +230,7 @@
 			);
 			mainGroup = 998428FD0BB7AFB170604F94;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -371,20 +373,14 @@
 				CODE_SIGN_ENTITLEMENTS = AdhanApp/AdhanApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = Z4Q536P7H9;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = AdhanApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Sukoon Adhan";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.warwani.adhanapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.adhan.app;
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -468,20 +464,14 @@
 				CODE_SIGN_ENTITLEMENTS = AdhanApp/AdhanApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = Z4Q536P7H9;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = AdhanApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Sukoon Adhan";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.warwani.adhanapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.adhan.app;
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				TARGETED_DEVICE_FAMILY = "1,2";
