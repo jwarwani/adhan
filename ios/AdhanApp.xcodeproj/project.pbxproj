@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -63,7 +63,7 @@
 		AB10FCE1290E5E8E5729A7C8 /* DateHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHeaderView.swift; sourceTree = "<group>"; };
 		AFC83261C71F6A2F1AAB9DA6 /* PrayerTimesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerTimesManager.swift; sourceTree = "<group>"; };
 		B72899A7C2D5EBDE21873E72 /* Prayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prayer.swift; sourceTree = "<group>"; };
-		C234017519098BF3768F8275 /* AdhanApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AdhanApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C234017519098BF3768F8275 /* AdhanApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AdhanApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1FB01E9F3971282573B8C5F /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D76D1DE6E448700A732BD9F4 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		DC4F5BFB4B64B20EB81BA4B6 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -215,7 +215,6 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					B578D3D7DFE16A4E33C781DE = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -230,7 +229,6 @@
 			);
 			mainGroup = 998428FD0BB7AFB170604F94;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -372,14 +370,20 @@
 				CODE_SIGN_ENTITLEMENTS = AdhanApp/AdhanApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = Z4Q536P7H9;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = AdhanApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sukoon Adhan";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.adhan.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.warwani.adhanapp;
 				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -462,14 +466,20 @@
 				CODE_SIGN_ENTITLEMENTS = AdhanApp/AdhanApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = Z4Q536P7H9;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = AdhanApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sukoon Adhan";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.reference";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.adhan.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.warwani.adhanapp;
 				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				TARGETED_DEVICE_FAMILY = "1,2";
